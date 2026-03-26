@@ -376,6 +376,25 @@
         <p>No games played yet.</p>
       </div>
     </div>
+    <div class="card mi-card" style="margin-top:15px">
+      <h3>🧪 MI Pipeline Status</h3>
+      <div class="grid" style="margin-top:10px">
+        <div>
+          <h4 style="color:#7b2ff7;margin-bottom:8px">Extraction Status</h4>
+          <div id="extractStatus"><p>No experiments run yet.</p></div>
+        </div>
+        <div>
+          <h4 style="color:#7b2ff7;margin-bottom:8px">Probe Results (AUROC by Layer)</h4>
+          <div id="probeResults"><p>No experiments run yet.</p></div>
+          <canvas id="probeChart" style="display:none;margin-top:10px" height="200"></canvas>
+        </div>
+      </div>
+      <div style="margin-top:15px">
+        <h4 style="color:#7b2ff7;margin-bottom:8px">Base vs Fine-tuned Comparison</h4>
+        <div id="comparisonResults"><p>No comparison data available.</p></div>
+        <canvas id="comparisonChart" style="display:none;margin-top:10px" height="200"></canvas>
+      </div>
+    </div>
   </div>
   <script>
     let pollInterval = null;
@@ -529,7 +548,77 @@
         }
       } catch (e) { }
     }
-    refreshResults(); refreshMI();
+    async function refreshMIPipeline() {
+      // Extraction status
+      try {
+        const r = await fetch('/api/mi/extract_status'); const d = await r.json();
+        if (d.status === 'completed') {
+          document.getElementById('extractStatus').innerHTML = `
+            <div class="stat"><span>Status</span><span style="color:#4CAF50">✓ Completed</span></div>
+            <div class="stat"><span>Model</span><span>${d.model}</span></div>
+            <div class="stat"><span>Interactions</span><span>${d.num_interactions}</span></div>
+            <div class="stat"><span>Layers</span><span>${d.num_layers}</span></div>`;
+        }
+      } catch(e) {}
+      // Probe results
+      try {
+        const r = await fetch('/api/mi/probe_results'); const d = await r.json();
+        if (d.status === 'completed' && d.layers.length > 0) {
+          let html = `<div class="stat"><span>Best AUROC</span><span style="color:#4CAF50">${d.best_auroc.toFixed(3)}</span></div>
+            <div class="stat"><span>Best Layer</span><span>${d.best_layer}</span></div>
+            <div class="stat"><span>Aggregation</span><span>${d.aggregation}</span></div>`;
+          document.getElementById('probeResults').innerHTML = html;
+          // Render bar chart
+          const canvas = document.getElementById('probeChart');
+          canvas.style.display = 'block';
+          const ctx = canvas.getContext('2d');
+          const w = canvas.width = canvas.parentElement.clientWidth;
+          const h = 200;
+          ctx.clearRect(0, 0, w, h);
+          const barW = Math.max(w / d.layers.length - 2, 3);
+          d.layers.forEach((l, i) => {
+            const x = i * (barW + 2);
+            const barH = l.auroc * (h - 30);
+            ctx.fillStyle = l.auroc > 0.7 ? '#4CAF50' : l.auroc > 0.5 ? '#ff9800' : '#e94560';
+            ctx.fillRect(x, h - 30 - barH, barW, barH);
+            if (d.layers.length <= 30) {
+              ctx.fillStyle = '#888'; ctx.font = '9px monospace';
+              ctx.fillText(l.layer, x, h - 18);
+              ctx.fillText(l.auroc.toFixed(2), x, h - 6);
+            }
+          });
+          // Chance line
+          ctx.strokeStyle = '#e94560'; ctx.setLineDash([4,4]);
+          ctx.beginPath(); ctx.moveTo(0, h - 30 - 0.5*(h-30)); ctx.lineTo(w, h - 30 - 0.5*(h-30)); ctx.stroke();
+        }
+      } catch(e) {}
+      // Comparison
+      try {
+        const r = await fetch('/api/mi/comparison'); const d = await r.json();
+        if (d.status === 'completed' && d.layers.length > 0) {
+          document.getElementById('comparisonResults').innerHTML = `
+            <div class="stat"><span>Best Improvement Layer</span><span>${d.best_improvement_layer}</span></div>
+            <div class="stat"><span>Max AUROC Delta</span><span style="color:${d.max_auroc_delta > 0 ? '#4CAF50' : '#e94560'}">${d.max_auroc_delta > 0 ? '+' : ''}${d.max_auroc_delta.toFixed(3)}</span></div>`;
+          const canvas = document.getElementById('comparisonChart');
+          canvas.style.display = 'block';
+          const ctx = canvas.getContext('2d');
+          const w = canvas.width = canvas.parentElement.clientWidth;
+          const h = 200;
+          ctx.clearRect(0, 0, w, h);
+          const barW = Math.max(w / d.layers.length / 2 - 2, 2);
+          d.layers.forEach((l, i) => {
+            const x = i * (barW * 2 + 4);
+            const bH = l.base_auroc * (h - 30);
+            const fH = l.finetuned_auroc * (h - 30);
+            ctx.fillStyle = '#4a9eff'; ctx.fillRect(x, h - 30 - bH, barW, bH);
+            ctx.fillStyle = '#ff6b6b'; ctx.fillRect(x + barW + 1, h - 30 - fH, barW, fH);
+          });
+          ctx.fillStyle = '#4a9eff'; ctx.fillRect(10, 5, 12, 12); ctx.fillStyle='#ccc'; ctx.font='11px sans-serif'; ctx.fillText('Base', 26, 15);
+          ctx.fillStyle = '#ff6b6b'; ctx.fillRect(70, 5, 12, 12); ctx.fillStyle='#ccc'; ctx.fillText('Fine-tuned', 86, 15);
+        }
+      } catch(e) {}
+    }
+    refreshResults(); refreshMI(); refreshMIPipeline();
   </script>
 </body>
 

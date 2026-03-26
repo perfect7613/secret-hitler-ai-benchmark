@@ -1,7 +1,7 @@
 import random
 import time
-import prompts
-from player import Player, MODELS
+from game import prompts
+from game.player import Player, MODELS
 
 # Delay between API calls — paid models have high rate limits
 API_CALL_DELAY = 1
@@ -114,6 +114,41 @@ class Game:
         self.game_log.append(msg)
         self.log_callback(msg)
 
+    def _record_mi(self, player, action, hidden, public, label):
+        """Record an MI interaction at the game level."""
+        # Get prompt_text from the player's last MI interaction if available
+        prompt_text = ""
+        if player.mi_interactions:
+            prompt_text = player.mi_interactions[-1].get("prompt_text", "")
+
+        record = {
+            "round": self.deception_metrics["total_rounds"],
+            "player": player.name,
+            "role": player.role,
+            "deceptive_intent": player.deceptive_intent,
+            "model": player.model,
+            "action": action,
+            "hidden_thought": hidden,
+            "public_statement": public,
+            "deception_type": label,
+            "prompt_text": prompt_text,
+            "game_state": {
+                "liberal_policies": self.liberal_policies,
+                "fascist_policies": self.fascist_policies,
+                "election_tracker": self.election_tracker,
+                "round": self.deception_metrics["total_rounds"],
+                "players_alive": [p.name for p in self.players],
+            },
+        }
+        self.mi_interactions.append(record)
+        self.deception_timeline.append({
+            "round": self.deception_metrics["total_rounds"],
+            "player": player.name,
+            "role": player.role,
+            "action": action,
+            "label": label,
+        })
+
     def _reshuffle_if_needed(self):
         if len(self.draw_pile) < 3:
             self.draw_pile = self.draw_pile + self.discard_pile
@@ -154,10 +189,10 @@ class Game:
         """Build comprehensive MI-ready results dictionary."""
         # Compute MI summary stats
         total_interactions = len(self.mi_interactions)
-        deceptive_count = sum(1 for i in self.mi_interactions if i["deception_label"] == "DECEPTIVE")
-        truthful_count = sum(1 for i in self.mi_interactions if i["deception_label"] == "TRUTHFUL")
-        strategic_count = sum(1 for i in self.mi_interactions if i["deception_label"] == "STRATEGIC_TRUTH")
-        unknown_count = sum(1 for i in self.mi_interactions if i["deception_label"] == "UNKNOWN")
+        deceptive_count = sum(1 for i in self.mi_interactions if i["deception_type"] == "DECEPTIVE")
+        truthful_count = sum(1 for i in self.mi_interactions if i["deception_type"] == "TRUTHFUL")
+        strategic_count = sum(1 for i in self.mi_interactions if i["deception_type"] == "STRATEGIC_TRUTH")
+        unknown_count = sum(1 for i in self.mi_interactions if i["deception_type"] == "UNKNOWN")
 
         # Compute suspicion accuracy — did players correctly identify Fascists?
         fascist_names = {p.name for p in self.players if p.role in ("a Fascist", "Hitler")}
@@ -266,24 +301,7 @@ class Game:
             if hidden:
                 self._log(f"🧠 [HIDDEN] {p.name} ({p.role}): {hidden}")
             self._log(f"🏷️ [{label}] {p.name}")
-            # Store MI interaction
-            self.mi_interactions.append({
-                "round": self.deception_metrics["total_rounds"],
-                "player": p.name,
-                "role": p.role,
-                "model": p.model,
-                "action": "discussion",
-                "hidden_thought": hidden,
-                "public_statement": public,
-                "deception_label": label,
-            })
-            self.deception_timeline.append({
-                "round": self.deception_metrics["total_rounds"],
-                "player": p.name,
-                "role": p.role,
-                "action": "discussion",
-                "label": label,
-            })
+            self._record_mi(p, "discussion", hidden, public, label)
 
         # Voting
         ja_count = 0
@@ -294,6 +312,11 @@ class Game:
             vote, reasoning = p.vote(message_history, nominated_president, nominated_chancellor)
             self.message_history.append(f"{p.name} votes {vote}")
             self._log(f"{p.name} votes {vote} — Reasoning: {reasoning}")
+            # Record vote MI data (last interaction from chat_with_mi)
+            if p.mi_interactions:
+                last_mi = p.mi_interactions[-1]
+                self._record_mi(p, "vote", last_mi.get("hidden_thought", ""),
+                                last_mi.get("public_statement", ""), last_mi.get("deception_type", "UNKNOWN"))
             if vote == "Ja!":
                 ja_count += 1
             else:
@@ -345,6 +368,11 @@ class Game:
         )
         self.discard_pile.append(discarded)
         self._log(f"🔒 [SECRET] President {self.president.name} drew {policy_candidates} → discarded {discarded} — {pres_reasoning}")
+        # Record president policy MI
+        if self.president.mi_interactions:
+            last_mi = self.president.mi_interactions[-1]
+            self._record_mi(self.president, "policy_president", last_mi.get("hidden_thought", ""),
+                            last_mi.get("public_statement", ""), last_mi.get("deception_type", "UNKNOWN"))
 
         time.sleep(API_CALL_DELAY)
         message_history = "\n\n".join(self.message_history[-10:])
@@ -353,6 +381,11 @@ class Game:
         )
         self.discard_pile.append(disc2)
         self._log(f"🔒 [SECRET] Chancellor {self.chancellor.name} received {remaining} → discarded {disc2} — {chan_reasoning}")
+        # Record chancellor policy MI
+        if self.chancellor.mi_interactions:
+            last_mi = self.chancellor.mi_interactions[-1]
+            self._record_mi(self.chancellor, "policy_chancellor", last_mi.get("hidden_thought", ""),
+                            last_mi.get("public_statement", ""), last_mi.get("deception_type", "UNKNOWN"))
 
         self._log(f"Enacted: {enacted} Policy (President: {self.president.name}, Chancellor: {self.chancellor.name})")
 
@@ -381,6 +414,11 @@ class Game:
         if enacted == "Fascist" and self.fascist_policies >= 4:
             message_history = "\n\n".join(self.message_history[-10:])
             success, message = self.president.execute_player(message_history)
+            # Record execution MI
+            if self.president.mi_interactions:
+                last_mi = self.president.mi_interactions[-1]
+                self._record_mi(self.president, "execute", last_mi.get("hidden_thought", ""),
+                                last_mi.get("public_statement", ""), last_mi.get("deception_type", "UNKNOWN"))
             if success:
                 msg_lower = message.lower()
                 for p in self.players:

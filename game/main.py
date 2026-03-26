@@ -3,18 +3,18 @@ import os
 import threading
 from datetime import datetime
 
-# Load .env file
+# Load .env file from project root
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from flask import Flask, render_template, jsonify, request, send_file
-from game import Game
-from player import MODELS
+from game.game import Game
+from game.player import MODELS
 
-RESULTS_DIR = "results"
+RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
 
 # Store benchmark results
 benchmark_results = []
@@ -188,7 +188,7 @@ def list_saved_files():
 @app.route("/api/mi_export")
 def mi_export():
     """Export MI-ready dataset for linear probe training.
-    Format: list of {hidden_thought, public_statement, role, deception_label, model, action_type}
+    Format: list of {hidden_thought, public_statement, role, deceptive_intent, deception_type, model, action_type}
     This is the format needed for training deception detection probes
     (cf. Goldowsky-Dill et al., 'Detecting Strategic Deception Using Linear Probes', ICML 2025)."""
     if not benchmark_results:
@@ -202,7 +202,8 @@ def mi_export():
                 "hidden_thought": ix.get("hidden_thought", ""),
                 "public_statement": ix.get("public_statement", ""),
                 "role": ix.get("role", ""),
-                "deception_label": ix.get("deception_label", ""),
+                "deceptive_intent": ix.get("deceptive_intent", False),
+                "deception_type": ix.get("deception_type", "UNKNOWN"),
                 "model": ix.get("model", ""),
                 "action_type": ix.get("action", ""),
                 "round": ix.get("round", 0),
@@ -217,14 +218,81 @@ def mi_export():
             "reference": "Goldowsky-Dill et al., Detecting Strategic Deception Using Linear Probes, ICML 2025",
             "total_samples": len(mi_dataset),
             "label_distribution": {
-                "DECEPTIVE": sum(1 for d in mi_dataset if d["deception_label"] == "DECEPTIVE"),
-                "TRUTHFUL": sum(1 for d in mi_dataset if d["deception_label"] == "TRUTHFUL"),
-                "STRATEGIC_TRUTH": sum(1 for d in mi_dataset if d["deception_label"] == "STRATEGIC_TRUTH"),
-                "UNKNOWN": sum(1 for d in mi_dataset if d["deception_label"] == "UNKNOWN"),
+                "deceptive_intent_true": sum(1 for d in mi_dataset if d["deceptive_intent"]),
+                "deceptive_intent_false": sum(1 for d in mi_dataset if not d["deceptive_intent"]),
+                "DECEPTIVE": sum(1 for d in mi_dataset if d["deception_type"] == "DECEPTIVE"),
+                "TRUTHFUL": sum(1 for d in mi_dataset if d["deception_type"] == "TRUTHFUL"),
+                "STRATEGIC_TRUTH": sum(1 for d in mi_dataset if d["deception_type"] == "STRATEGIC_TRUTH"),
+                "UNKNOWN": sum(1 for d in mi_dataset if d["deception_type"] == "UNKNOWN"),
             },
             "samples": mi_dataset,
         }, f, indent=2)
     return send_file(filepath, as_attachment=True, download_name=f"mi_dataset_{ts}.json")
+
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+
+@app.route("/api/mi_export_full")
+def mi_export_full():
+    """Export TransformerLens-ready dataset with full prompt text and game state context.
+
+    Each record includes:
+    - prompt_text: full reconstructed prompt (system + history + action prompt) for Pythia replay
+    - hidden_thought, public_statement: dual-channel output
+    - action_type: discussion, vote, policy_president, policy_chancellor, execute, investigate
+    - deceptive_intent: bool primary label from role
+    - deception_type: DECEPTIVE, STRATEGIC_TRUTH, TRUTHFUL, OMISSION, UNKNOWN
+    - game_state: {liberal_policies, fascist_policies, election_tracker, round, players_alive}
+    - player_name, player_role, model
+    """
+    if not benchmark_results:
+        return jsonify({"error": "No results yet"}), 400
+
+    full_dataset = []
+    for game_idx, game in enumerate(benchmark_results):
+        mi_data = game.get("mi_data", {})
+        interactions = mi_data.get("interactions", [])
+        for ix in interactions:
+            full_dataset.append({
+                "game_id": game_idx,
+                "round": ix.get("round", 0),
+                "player_name": ix.get("player", ""),
+                "player_role": ix.get("role", ""),
+                "model": ix.get("model", ""),
+                "action_type": ix.get("action", ""),
+                "deceptive_intent": ix.get("deceptive_intent", False),
+                "deception_type": ix.get("deception_type", "UNKNOWN"),
+                "hidden_thought": ix.get("hidden_thought", ""),
+                "public_statement": ix.get("public_statement", ""),
+                "prompt_text": ix.get("prompt_text", ""),
+                "game_state": ix.get("game_state", {}),
+            })
+
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filepath = os.path.join(DATA_DIR, f"game_{ts}.json")
+
+    export = {
+        "description": "TransformerLens-ready MI dataset for activation extraction and linear probing",
+        "export_timestamp": ts,
+        "total_samples": len(full_dataset),
+        "label_distribution": {
+            "deceptive_intent_true": sum(1 for d in full_dataset if d["deceptive_intent"]),
+            "deceptive_intent_false": sum(1 for d in full_dataset if not d["deceptive_intent"]),
+        },
+        "action_type_distribution": {},
+        "samples": full_dataset,
+    }
+    # Count action types
+    for d in full_dataset:
+        at = d["action_type"]
+        export["action_type_distribution"][at] = export["action_type_distribution"].get(at, 0) + 1
+
+    with open(filepath, "w") as f:
+        json.dump(export, f, indent=2)
+
+    return send_file(filepath, as_attachment=True, download_name=f"game_{ts}.json")
 
 
 @app.route("/api/mi_summary")
@@ -251,6 +319,93 @@ def mi_summary():
         "total_truthful": total_truthful,
         "overall_deception_rate": round(total_deceptive / max(total_interactions, 1) * 100, 1),
         "hitler_detection_rate": round(total_hitler_correct / max(total_hitler_guesses, 1) * 100, 1),
+    })
+
+
+RESULTS_MI_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+
+
+@app.route("/api/mi/extract_status")
+def mi_extract_status():
+    """Return status of activation extraction pipeline."""
+    activations_dir = os.path.join(DATA_DIR, "activations")
+    if not os.path.exists(activations_dir):
+        return jsonify({"status": "not_run", "last_run": None, "model": None, "num_interactions": 0})
+
+    # Find latest metadata file
+    meta_files = sorted([f for f in os.listdir(activations_dir) if f.startswith("metadata_") and f.endswith(".json")], reverse=True)
+    if not meta_files:
+        return jsonify({"status": "not_run", "last_run": None, "model": None, "num_interactions": 0})
+
+    meta_path = os.path.join(activations_dir, meta_files[0])
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+    return jsonify({
+        "status": "completed",
+        "last_run": meta_files[0],
+        "model": meta.get("model", "unknown"),
+        "num_interactions": meta.get("total_samples", 0),
+        "num_layers": meta.get("num_layers_extracted", 0),
+        "skipped": meta.get("skipped_samples", 0),
+    })
+
+
+@app.route("/api/mi/probe_results")
+def mi_probe_results():
+    """Return latest probe AUROC results per layer."""
+    probe_path = os.path.join(RESULTS_MI_DIR, "probe_results.json")
+    if not os.path.exists(probe_path):
+        return jsonify({"status": "not_run", "layers": []})
+
+    with open(probe_path) as f:
+        data = json.load(f)
+
+    layers = []
+    for layer_str, metrics in data.get("per_layer_metrics", {}).items():
+        layers.append({
+            "layer": int(layer_str),
+            "auroc": metrics.get("auroc", 0),
+            "accuracy": metrics.get("accuracy", 0),
+            "f1": metrics.get("f1", 0),
+        })
+    layers.sort(key=lambda x: x["layer"])
+
+    return jsonify({
+        "status": "completed",
+        "model": data.get("model", "unknown"),
+        "aggregation": data.get("aggregation", "unknown"),
+        "best_auroc": data.get("best_auroc", 0),
+        "best_layer": data.get("best_layer", -1),
+        "layers": layers,
+    })
+
+
+@app.route("/api/mi/comparison")
+def mi_comparison():
+    """Return base vs fine-tuned comparison results."""
+    comp_path = os.path.join(RESULTS_MI_DIR, "comparison_results.json")
+    if not os.path.exists(comp_path):
+        return jsonify({"status": "not_run", "layers": []})
+
+    with open(comp_path) as f:
+        data = json.load(f)
+
+    layers = []
+    for layer_str, metrics in data.get("per_layer_comparison", {}).items():
+        layers.append({
+            "layer": int(layer_str),
+            "base_auroc": metrics.get("base_auroc", 0),
+            "finetuned_auroc": metrics.get("finetuned_auroc", 0),
+            "delta": metrics.get("delta", 0),
+        })
+    layers.sort(key=lambda x: x["layer"])
+
+    return jsonify({
+        "status": "completed",
+        "best_improvement_layer": data.get("best_improvement_layer"),
+        "max_auroc_delta": data.get("max_auroc_delta", 0),
+        "layers": layers,
     })
 
 

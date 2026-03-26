@@ -1,0 +1,21 @@
+# Existing dependencies (game simulation)
+flask
+openai
+python-dotenv
+requests
+
+# MI pipeline dependencies
+transformer-lens
+torch
+scikit-learn
+matplotlib
+seaborn
+
+# Fine-tuning dependencies
+peft
+transformers
+datasets
+accelerate
+
+# Testing
+pytest
