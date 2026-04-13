@@ -519,6 +519,22 @@ def mi_vector_comparison():
     })
 
 
+@app.route("/mi")
+def mi_viewer():
+    return render_template("mi.html")
+
+
+@app.route("/api/mi/results/<path:filename>")
+def mi_result_file(filename):
+    safe_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    filepath = os.path.join(safe_dir, filename)
+    if not os.path.exists(filepath):
+        return jsonify({"status": "not_run"})
+    with open(filepath) as f:
+        data = json.load(f)
+    return jsonify(data)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"Starting Secret Hitler Deception Benchmark on http://localhost:{port}")
