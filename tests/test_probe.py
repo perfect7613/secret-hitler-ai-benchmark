@@ -1,6 +1,7 @@
 """Tests for linear probing module (Issue #8).
 
 Verifies probe training, aggregation strategies, and result schema.
+Also tests vector-based probing (Issue #17).
 """
 import json
 import os
@@ -10,7 +11,38 @@ import numpy as np
 import pytest
 import torch
 
-from mi.probe import aggregate_activations, train_probe, run_probing
+from mi.probe import aggregate_activations, train_probe, run_probing, run_vector_probe
+
+
+def _get_last_token(activations, layer):
+    vectors = []
+    for act_dict in activations:
+        tensor = act_dict[layer]
+        vectors.append(tensor[-1].numpy())
+    return np.stack(vectors)
+
+
+def make_test_metadata(n_samples, labels, layers, hidden_dim=64):
+    """Create test metadata matching activations."""
+    return {
+        "model": "test-model",
+        "layer_indices": layers,
+        "hidden_dim": hidden_dim,
+        "total_samples": n_samples,
+        "skipped_samples": 0,
+        "samples": [
+            {
+                "interaction_id": i,
+                "deceptive_intent": bool(labels[i]),
+                "deception_type": "DECEPTIVE" if labels[i] else "TRUTHFUL",
+                "action_type": "discussion",
+                "player_role": "a Fascist" if labels[i] else "a Liberal",
+                "num_tokens": 20,
+                "layer_indices": layers,
+            }
+            for i in range(n_samples)
+        ],
+    }
 
 
 def make_random_activations(n_samples=100, n_layers=3, seq_len=20, hidden_dim=64, layers=None):
@@ -175,3 +207,128 @@ class TestRunProbing:
             assert "best_auroc" in saved
             assert "aggregation" in saved
             assert saved["aggregation"] == "mean_pool"
+
+
+class TestVectorProbe:
+    def test_vector_probe_on_separable_data(self):
+        """Vector probe should achieve high AUROC on separable data."""
+        acts, labels, layers = make_separable_activations(
+            n_samples=100, n_layers=3, hidden_dim=32, layers=[0, 5, 10]
+        )
+
+        vectors = {}
+        for layer in layers:
+            positive_mask = labels == 1
+            negative_mask = labels == 0
+            X = _get_last_token(acts, layer)
+            positive_mean = X[positive_mask].mean(axis=0)
+            negative_mean = X[negative_mask].mean(axis=0)
+            vec = positive_mean - negative_mean
+            vec = vec / (np.linalg.norm(vec) + 1e-10)
+            vectors[layer] = vec
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            vec_path = os.path.join(tmpdir, "deception_vectors.pt")
+            vectors_pt = {str(k): torch.tensor(v) for k, v in vectors.items()}
+            torch.save(vectors_pt, vec_path)
+
+            act_path = os.path.join(tmpdir, "activations_test.pt")
+            torch.save(acts, act_path)
+
+            meta_path = os.path.join(tmpdir, "metadata_test.json")
+            metadata = {
+                "model": "test-model",
+                "layer_indices": layers,
+                "hidden_dim": 32,
+                "total_samples": len(acts),
+                "skipped_samples": 0,
+                "samples": [
+                    {
+                        "interaction_id": i,
+                        "deceptive_intent": bool(labels[i]),
+                        "deception_type": "DECEPTIVE" if labels[i] else "TRUTHFUL",
+                        "action_type": "discussion",
+                        "player_role": "a Fascist" if labels[i] else "a Liberal",
+                        "num_tokens": 20,
+                        "layer_indices": layers,
+                    }
+                    for i in range(len(labels))
+                ],
+            }
+            with open(meta_path, "w") as f:
+                json.dump(metadata, f)
+
+            output_dir = os.path.join(tmpdir, "vector_probe_results")
+            results = run_vector_probe(
+                vectors_path=vec_path,
+                activations_path=act_path,
+                metadata_path=meta_path,
+                aggregation="last_token",
+                output_dir=output_dir,
+            )
+
+            for layer in layers:
+                assert layer in results
+                assert results[layer]["auroc"] > 0.7, (
+                    f"Layer {layer} AUROC {results[layer]['auroc']} too low for separable data"
+                )
+
+            results_file = os.path.join(output_dir, "probe_results.json")
+            assert os.path.exists(results_file)
+            with open(results_file) as f:
+                saved = json.load(f)
+            assert saved["method"] == "vector"
+            assert "per_layer_metrics" in saved
+            assert "best_auroc" in saved
+
+    def test_vector_probe_output_schema_matches_lr(self):
+        """Vector probe output should have same top-level keys as LR probe."""
+        acts, labels, layers = make_separable_activations(
+            n_samples=100, n_layers=2, hidden_dim=32, layers=[0, 1]
+        )
+
+        vectors = {}
+        for layer in layers:
+            positive_mask = labels == 1
+            negative_mask = labels == 0
+            X = _get_last_token(acts, layer)
+            positive_mean = X[positive_mask].mean(axis=0)
+            negative_mean = X[negative_mask].mean(axis=0)
+            vec = positive_mean - negative_mean
+            vec = vec / (np.linalg.norm(vec) + 1e-10)
+            vectors[layer] = vec
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            vec_path = os.path.join(tmpdir, "deception_vectors.pt")
+            vectors_pt = {str(k): torch.tensor(v) for k, v in vectors.items()}
+            torch.save(vectors_pt, vec_path)
+
+            act_path = os.path.join(tmpdir, "activations_test.pt")
+            torch.save(acts, act_path)
+
+            meta_path = os.path.join(tmpdir, "metadata_test.json")
+            metadata = make_test_metadata(len(labels), labels, layers, 32)
+            with open(meta_path, "w") as f:
+                json.dump(metadata, f)
+
+            output_dir = os.path.join(tmpdir, "vector_probe_results")
+            run_vector_probe(
+                vectors_path=vec_path,
+                activations_path=act_path,
+                metadata_path=meta_path,
+                aggregation="last_token",
+                output_dir=output_dir,
+            )
+
+            results_file = os.path.join(output_dir, "probe_results.json")
+            with open(results_file) as f:
+                saved = json.load(f)
+
+            assert "method" in saved
+            assert saved["method"] == "vector"
+            assert "model" in saved
+            assert "aggregation" in saved
+            assert "total_samples" in saved
+            assert "per_layer_metrics" in saved
+            assert "best_layer" in saved
+            assert "best_auroc" in saved
