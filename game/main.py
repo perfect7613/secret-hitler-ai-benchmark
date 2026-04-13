@@ -409,6 +409,116 @@ def mi_comparison():
     })
 
 
+@app.route("/api/mi/vector_results")
+def mi_vector_results():
+    """Return latest deception vector extraction results."""
+    vec_dir = os.path.join(RESULTS_MI_DIR, "vectors")
+    if os.path.exists(os.path.join(RESULTS_MI_DIR, "vector_results.json")):
+        vec_path = os.path.join(RESULTS_MI_DIR, "vector_results.json")
+    elif os.path.exists(os.path.join(vec_dir, "vector_results.json")):
+        vec_path = os.path.join(vec_dir, "vector_results.json")
+    else:
+        return jsonify({"status": "not_run"})
+
+    with open(vec_path) as f:
+        data = json.load(f)
+
+    layers = []
+    for layer_str, auroc in data.get("per_layer_auroc", {}).items():
+        layers.append({
+            "layer": int(layer_str),
+            "auroc": auroc,
+        })
+    layers.sort(key=lambda x: x["layer"])
+
+    return jsonify({
+        "status": "completed",
+        "model": data.get("model", "unknown"),
+        "label_field": data.get("label_field", "deceptive_intent"),
+        "best_auroc": data.get("best_auroc", 0),
+        "best_layer": data.get("best_layer", -1),
+        "num_positive": data.get("num_positive", 0),
+        "num_negative": data.get("num_negative", 0),
+        "layers": layers,
+    })
+
+
+@app.route("/api/mi/steering_results")
+def mi_steering_results():
+    """Return latest steering experiment results."""
+    steer_path = os.path.join(RESULTS_MI_DIR, "steering", "steering_results.json")
+    if not os.path.exists(steer_path):
+        return jsonify({"status": "not_run"})
+
+    with open(steer_path) as f:
+        data = json.load(f)
+
+    coefficients = []
+    for r in data.get("results", []):
+        coefficients.append({
+            "coefficient": r.get("coefficient", 0),
+            "deception_rate": r.get("aggregate_deception_rate", 0),
+            "mean_score": r.get("mean_deception_score", 0),
+        })
+
+    return jsonify({
+        "status": "completed",
+        "model": data.get("model", "unknown"),
+        "steering_layer": data.get("steering_layer", -1),
+        "num_prompts": data.get("num_prompts", 0),
+        "num_completions": data.get("num_completions", 0),
+        "coefficients": coefficients,
+    })
+
+
+@app.route("/api/mi/vector_comparison")
+def mi_vector_comparison():
+    """Return vector comparison between base and fine-tuned models."""
+    comp_dir = os.path.join(RESULTS_MI_DIR, "comparison")
+    if os.path.exists(os.path.join(RESULTS_MI_DIR, "comparison_results.json")):
+        comp_path = os.path.join(RESULTS_MI_DIR, "comparison_results.json")
+    elif os.path.exists(os.path.join(comp_dir, "comparison_results.json")):
+        comp_path = os.path.join(comp_dir, "comparison_results.json")
+    else:
+        return jsonify({"status": "not_run"})
+
+    with open(comp_path) as f:
+        data = json.load(f)
+
+    vec_comp = data.get("vector_comparison", {})
+
+    layers = []
+    per_layer = vec_comp.get("per_layer", {})
+    for layer_str, metrics in per_layer.items():
+        layers.append({
+            "layer": int(layer_str),
+            "cosine_similarity": metrics.get("cosine_similarity", 0),
+            "base_norm": metrics.get("base_norm", 0),
+            "ft_norm": metrics.get("ft_norm", 0),
+        })
+    layers.sort(key=lambda x: x["layer"])
+
+    probe_layers = []
+    probe_comp = data.get("probe_comparison", {})
+    for layer_str, metrics in probe_comp.get("per_layer", {}).items():
+        probe_layers.append({
+            "layer": int(layer_str),
+            "base_auroc": metrics.get("base_auroc", 0),
+            "ft_auroc": metrics.get("ft_auroc", 0),
+            "delta": metrics.get("delta", 0),
+        })
+    probe_layers.sort(key=lambda x: x["layer"])
+
+    return jsonify({
+        "status": "completed",
+        "mean_cosine_similarity": vec_comp.get("mean_cosine_similarity", 0),
+        "max_cosine_similarity": vec_comp.get("max_cosine_similarity", 0),
+        "shared_layers": vec_comp.get("shared_layers", []),
+        "vector_layers": layers,
+        "probe_layers": probe_layers,
+    })
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     print(f"Starting Secret Hitler Deception Benchmark on http://localhost:{port}")

@@ -1,625 +1,1000 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Secret Hitler - AI Deception & MI Benchmark</title>
+  <title>Deception Vector Observatory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box
+    :root {
+      --bg-deepest: #060611;
+      --bg-deep: #0a0a1a;
+      --bg-surface: #0f1023;
+      --bg-card: #141428;
+      --bg-card-hover: #1a1a35;
+      --border-dim: #1e1e3a;
+      --border-mid: #2a2a50;
+      --border-bright: #3d3d6b;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a8;
+      --text-dim: #555577;
+      --accent-red: #ff3366;
+      --accent-red-glow: rgba(255,51,102,0.15);
+      --accent-cyan: #00f0ff;
+      --accent-cyan-glow: rgba(0,240,255,0.12);
+      --accent-purple: #8b5cf6;
+      --accent-purple-glow: rgba(139,92,246,0.15);
+      --accent-green: #00ff88;
+      --accent-green-glow: rgba(0,255,136,0.12);
+      --accent-amber: #ffb800;
+      --accent-amber-glow: rgba(255,184,0,0.12);
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
     }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #1a1a2e;
-      color: #e0e0e0;
-      padding: 20px
+      font-family: var(--font-mono);
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      padding: 0;
+      overflow-x: hidden;
+      font-size: 13px;
+      line-height: 1.5;
     }
 
-    h1 {
-      text-align: center;
-      color: #e94560;
-      margin-bottom: 5px;
-      font-size: 2em
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, var(--accent-cyan-glow) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, var(--accent-purple-glow) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 80%, var(--accent-red-glow) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
     }
 
-    .subtitle {
-      text-align: center;
-      color: #888;
-      margin-bottom: 20px
+    .app { position: relative; z-index: 1; }
+
+    /* ─── Header ─── */
+    .header {
+      padding: 32px 24px 20px;
+      border-bottom: 1px solid var(--border-dim);
+      background: linear-gradient(180deg, rgba(10,10,26,0.95) 0%, rgba(6,6,17,0.9) 100%);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto
+    .header-title {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 50%, var(--accent-red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
+    .header-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      display: inline-block;
+      background: var(--accent-purple-glow);
+      border: 1px solid var(--accent-purple);
+      color: var(--accent-purple);
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+
+    /* ─── Controls ─── */
     .controls {
       display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap
+      gap: 8px;
+      padding: 16px 24px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
-    button {
-      background: #e94560;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    input[type="number"] {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-mid);
+      color: var(--accent-cyan);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      width: 60px;
+    }
+
+    .btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 7px 14px;
       cursor: pointer;
-      font-size: 14px
+      transition: all 0.2s;
+      font-weight: 500;
     }
 
-    button:hover {
-      background: #c73e54
+    .btn-primary {
+      background: var(--accent-red);
+      color: #fff;
+      border-color: var(--accent-red);
     }
+    .btn-primary:hover { background: #e6295a; box-shadow: 0 0 20px var(--accent-red-glow); }
+    .btn-primary:disabled { background: #333; border-color: #333; color: #666; cursor: not-allowed; box-shadow: none; }
 
-    button:disabled {
-      background: #555;
-      cursor: not-allowed
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border-color: var(--border-mid);
     }
+    .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
-    button.mi-btn {
-      background: #7b2ff7
+    .btn-vector {
+      background: transparent;
+      color: var(--accent-cyan);
+      border-color: var(--accent-cyan);
     }
+    .btn-vector:hover { background: var(--accent-cyan-glow); box-shadow: 0 0 15px var(--accent-cyan-glow); }
 
-    button.mi-btn:hover {
-      background: #6520d0
+    .btn-steer {
+      background: transparent;
+      color: var(--accent-amber);
+      border-color: var(--accent-amber);
     }
+    .btn-steer:hover { background: var(--accent-amber-glow); box-shadow: 0 0 15px var(--accent-amber-glow); }
 
-    select,
-    input {
-      background: #16213e;
-      color: #e0e0e0;
-      border: 1px solid #333;
-      padding: 8px 12px;
-      border-radius: 6px
-    }
-
-    .grid {
+    /* ─── Section Grid ─── */
+    .section-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 20px
+      gap: 16px;
+      padding: 0 24px 24px;
     }
 
+    @media (max-width: 900px) {
+      .section-grid { grid-template-columns: 1fr; }
+    }
+
+    .full-width { grid-column: 1 / -1; }
+
+    /* ─── Cards ─── */
     .card {
-      background: #16213e;
-      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
       padding: 20px;
-      border: 1px solid #333
+      transition: border-color 0.3s;
+      animation: cardIn 0.4s ease-out both;
+    }
+    .card:hover { border-color: var(--border-mid); }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    .card h3 {
-      color: #e94560;
-      margin-bottom: 10px
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .card.mi-card {
-      border-color: #7b2ff7
+    .card-title .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
     }
 
-    .card.mi-card h3 {
-      color: #7b2ff7
-    }
+    .card-game .card-title { color: var(--accent-red); }
+    .card-game .dot { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+    .card-vector .card-title { color: var(--accent-cyan); }
+    .card-vector .dot { background: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); }
+    .card-steer .card-title { color: var(--accent-amber); }
+    .card-steer .dot { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+    .card-compare .card-title { color: var(--accent-purple); }
+    .card-compare .dot { background: var(--accent-purple); box-shadow: 0 0 8px var(--accent-purple); }
+    .card-mi .card-title { color: var(--accent-green); }
+    .card-mi .dot { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
 
-    .stat {
+    /* ─── Stat Rows ─── */
+    .stat-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid #222
+      align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 12px;
     }
+    .stat-row:last-child { border-bottom: none; }
 
-    .stat-val {
-      color: #0f3460;
-      font-weight: bold
-    }
+    .stat-label { color: var(--text-secondary); }
+    .stat-value { font-weight: 500; }
+    .stat-value.c-red { color: var(--accent-red); }
+    .stat-value.c-cyan { color: var(--accent-cyan); }
+    .stat-value.c-green { color: var(--accent-green); }
+    .stat-value.c-amber { color: var(--accent-amber); }
+    .stat-value.c-purple { color: var(--accent-purple); }
 
-    .bar-container {
-      background: #0f3460;
-      border-radius: 4px;
-      height: 24px;
-      margin: 5px 0;
+    /* ─── Progress Bars ─── */
+    .bar-track {
+      background: rgba(255,255,255,0.04);
+      border-radius: 3px;
+      height: 20px;
+      margin: 4px 0;
+      overflow: hidden;
       position: relative;
-      overflow: hidden
     }
-
-    .bar {
+    .bar-fill {
       height: 100%;
-      border-radius: 4px;
-      transition: width 0.5s;
+      border-radius: 3px;
       display: flex;
       align-items: center;
       padding-left: 8px;
-      font-size: 12px
+      font-size: 10px;
+      font-weight: 500;
+      transition: width 0.6s cubic-bezier(0.22,1,0.36,1);
     }
+    .bar-fill.red { background: linear-gradient(90deg, #ff3366, #ff5c8a); }
+    .bar-fill.green { background: linear-gradient(90deg, #00ff88, #33ffaa); }
+    .bar-fill.cyan { background: linear-gradient(90deg, #00f0ff, #33f5ff); }
+    .bar-fill.amber { background: linear-gradient(90deg, #ffb800, #ffcc44); }
+    .bar-fill.purple { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
 
-    .bar.liberal {
-      background: #4CAF50
-    }
-
-    .bar.fascist {
-      background: #e94560
-    }
-
-    .bar.deceptive {
-      background: #ff9800
-    }
-
-    .bar.truthful {
-      background: #4CAF50
-    }
-
+    /* ─── Log Box ─── */
     .log-box {
-      background: #0d1117;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 10px;
-      max-height: 500px;
-      overflow-y: auto;
-      font-family: monospace;
-      font-size: 12px;
-      line-height: 1.6
-    }
-
-    .log-box p {
-      margin: 2px 0
-    }
-
-    .log-box .reasoning {
-      color: #8b949e;
-      font-style: italic;
-      margin-left: 20px;
-      display: block;
-      font-size: 11px
-    }
-
-    .log-box .vote-ja {
-      color: #4CAF50;
-      font-weight: bold
-    }
-
-    .log-box .vote-nein {
-      color: #e94560;
-      font-weight: bold
-    }
-
-    .log-box .round-header {
-      color: #ffd700;
-      font-weight: bold;
-      border-top: 1px solid #333;
-      padding-top: 6px;
-      margin-top: 6px
-    }
-
-    .log-box .enacted {
-      color: #58a6ff;
-      font-weight: bold
-    }
-
-    .log-box .game-over {
-      color: #ff9800;
-      font-weight: bold;
-      font-size: 14px
-    }
-
-    .status {
-      text-align: center;
-      padding: 10px;
-      color: #ffd700;
-      font-weight: bold
-    }
-
-    .game-detail {
-      background: #0f3460;
+      background: var(--bg-deepest);
+      border: 1px solid var(--border-dim);
       border-radius: 6px;
-      padding: 10px;
-      margin: 8px 0;
-      cursor: pointer
+      padding: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
     }
+    .log-box::-webkit-scrollbar { width: 6px; }
+    .log-box::-webkit-scrollbar-track { background: transparent; }
+    .log-box::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
 
-    .game-detail:hover {
-      background: #153a6e
-    }
+    .log-box p { margin: 1px 0; }
+    .log-line-vote-ja { color: var(--accent-green); font-weight: 600; }
+    .log-line-vote-nein { color: var(--accent-red); font-weight: 600; }
+    .log-line-round { color: var(--accent-amber); font-weight: 600; border-top: 1px solid var(--border-dim); padding-top: 6px; margin-top: 6px; }
+    .log-line-enacted { color: var(--accent-cyan); font-weight: 600; }
+    .log-line-gameover { color: var(--accent-red); font-weight: 700; font-size: 13px; }
+    .log-line-hidden { color: var(--accent-purple); opacity: 0.85; margin-left: 16px; font-size: 10px; }
+    .log-line-discuss { color: #a8dadc; margin-left: 10px; }
+    .log-line-discuss-header { color: #457b9d; font-weight: 600; border-top: 1px dashed var(--border-dim); padding-top: 4px; }
+    .log-line-secret { color: #ff6b6b; margin-left: 14px; font-size: 10px; opacity: 0.85; }
+    .log-line-suspicion { color: var(--accent-amber); font-size: 10px; margin-left: 12px; }
+    .log-line-suspicion-header { color: var(--accent-amber); font-weight: 600; border-top: 1px dashed var(--accent-purple); padding-top: 4px; }
 
-    .models-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 5px
-    }
+    .label-tag { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+    .label-tag.deceptive { color: var(--accent-amber); background: var(--accent-amber-glow); border: 1px solid rgba(255,184,0,0.3); }
+    .label-tag.truthful { color: var(--accent-green); background: var(--accent-green-glow); border: 1px solid rgba(0,255,136,0.3); }
+    .label-tag.strategic { color: #e6c300; background: rgba(230,195,0,0.1); border: 1px solid rgba(230,195,0,0.3); }
+    .label-tag.unknown { color: var(--text-dim); background: transparent; border: 1px solid var(--border-dim); }
 
-    .model-tag {
-      background: #e94560;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 11px
-    }
+    .role-liberal { color: var(--accent-green); }
+    .role-fascist { color: var(--accent-red); }
+    .role-hitler { color: var(--accent-amber); }
 
-    .role-liberal {
-      color: #4CAF50
-    }
-
-    .role-fascist {
-      color: #e94560
-    }
-
-    .role-hitler {
-      color: #ff9800
-    }
-
-    .label-deceptive {
-      color: #ff9800;
-      font-weight: bold
-    }
-
-    .label-truthful {
-      color: #4CAF50
-    }
-
-    .label-strategic {
-      color: #e6c300
-    }
-
-    .label-unknown {
-      color: #888
-    }
-
+    /* ─── Suspicion Table ─── */
     .suspicion-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 11px;
-      margin-top: 8px
+      margin-top: 8px;
     }
-
-    .suspicion-table th,
-    .suspicion-table td {
+    .suspicion-table th, .suspicion-table td {
       padding: 4px 6px;
-      border: 1px solid #333;
-      text-align: center
+      border: 1px solid var(--border-dim);
+      text-align: center;
+    }
+    .suspicion-table th { background: var(--bg-surface); color: var(--text-secondary); font-weight: 500; }
+    .suspicion-high { background: rgba(255,51,102,0.2); }
+    .suspicion-med { background: rgba(255,184,0,0.12); }
+    .suspicion-low { background: rgba(0,255,136,0.06); }
+
+    /* ─── Model Tags ─── */
+    .models-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .model-tag {
+      background: rgba(255,51,102,0.12);
+      border: 1px solid rgba(255,51,102,0.3);
+      color: var(--text-primary);
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 10px;
     }
 
-    .suspicion-table th {
-      background: #0f3460;
-      color: #e0e0e0
+    /* ─── Chart Canvases ─── */
+    .chart-area {
+      background: var(--bg-deepest);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      margin-top: 12px;
     }
 
-    .suspicion-high {
-      background: rgba(233, 69, 96, 0.3)
+    /* ─── Status Bar ─── */
+    .status-bar {
+      text-align: center;
+      padding: 10px;
+      color: var(--accent-amber);
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.5px;
     }
 
-    .suspicion-med {
-      background: rgba(255, 152, 0, 0.2)
+    /* ─── Section Dividers ─── */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 24px 24px 12px;
+    }
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-dim), transparent);
+    }
+    .section-divider span {
+      font-family: var(--font-display);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--text-dim);
+      white-space: nowrap;
     }
 
-    .suspicion-low {
-      background: rgba(76, 175, 80, 0.1)
+    /* ─── Game Detail Cards ─── */
+    .game-detail {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-dim);
+      border-radius: 5px;
+      padding: 10px;
+      margin: 6px 0;
+      transition: border-color 0.2s;
+      cursor: default;
     }
+    .game-detail:hover { border-color: var(--border-mid); }
 
-    @media(max-width:768px) {
-      .grid {
-        grid-template-columns: 1fr
-      }
+    /* ─── Placeholder ─── */
+    .placeholder {
+      color: var(--text-dim);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px;
     }
   </style>
 </head>
 
 <body>
-  <div class="container">
-    <h1>🎭 Secret Hitler AI Deception & MI Benchmark</h1>
-    <p class="subtitle">Mechanistic Interpretability Research — Hidden Thought vs. Public Statement Analysis<br>
-      <small style="color:#7b2ff7">Inspired by Goldowsky-Dill et al., "Detecting Strategic Deception Using Linear
-        Probes" (ICML 2025)</small>
-    </p>
-    <div class="controls">
-      <label>Games: <input type="number" id="numGames" value="1" min="1" max="5"></label>
-      <button id="startBtn" onclick="startGame()">▶ Run Benchmark</button>
-      <button onclick="clearResults()">🗑 Clear</button>
-      <button onclick="refreshResults()">🔄 Refresh</button>
-      <button onclick="saveResults()">💾 Save to File</button>
-      <button onclick="downloadResults()">📥 Download</button>
-      <button class="mi-btn" onclick="exportMI()">🧠 Export MI Dataset</button>
-    </div>
-    <div id="statusBar" class="status" style="display:none"></div>
-    <div class="grid">
-      <div class="card">
-        <h3>📊 Win Rate</h3>
-        <div id="winRate">
-          <p>No data yet. Run a benchmark!</p>
-        </div>
-      </div>
-      <div class="card mi-card">
-        <h3>🧠 MI Deception Analysis</h3>
-        <div id="miMetrics">
-          <p>Run a game to see MI data.</p>
-        </div>
-      </div>
-      <div class="card">
-        <h3>🎭 Deception Metrics</h3>
-        <div id="deceptionMetrics">
-          <p>No data yet.</p>
-        </div>
-      </div>
-      <div class="card mi-card">
-        <h3>🔍 Suspicion Matrix</h3>
-        <div id="suspicionMatrix">
-          <p>Run a game to see suspicion data.</p>
-        </div>
-      </div>
-      <div class="card">
-        <h3>📜 Policy Breakdown</h3>
-        <div id="policyBreakdown">
-          <p>No data yet.</p>
-        </div>
-      </div>
-      <div class="card">
-        <h3>🤖 Models & Roles</h3>
-        <div id="modelsInfo">
-          <p>No data yet.</p>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <h3>📝 Game Log <small style="color:#7b2ff7">(with hidden thoughts & deception labels)</small></h3>
-      <div id="gameLog" class="log-box">
-        <p>Waiting for game to start...</p>
-      </div>
-    </div>
-    <div class="card" style="margin-top:15px">
-      <h3>🏆 Individual Game Results</h3>
-      <div id="gameResults">
-        <p>No games played yet.</p>
-      </div>
-    </div>
-    <div class="card mi-card" style="margin-top:15px">
-      <h3>🧪 MI Pipeline Status</h3>
-      <div class="grid" style="margin-top:10px">
-        <div>
-          <h4 style="color:#7b2ff7;margin-bottom:8px">Extraction Status</h4>
-          <div id="extractStatus"><p>No experiments run yet.</p></div>
-        </div>
-        <div>
-          <h4 style="color:#7b2ff7;margin-bottom:8px">Probe Results (AUROC by Layer)</h4>
-          <div id="probeResults"><p>No experiments run yet.</p></div>
-          <canvas id="probeChart" style="display:none;margin-top:10px" height="200"></canvas>
-        </div>
-      </div>
-      <div style="margin-top:15px">
-        <h4 style="color:#7b2ff7;margin-bottom:8px">Base vs Fine-tuned Comparison</h4>
-        <div id="comparisonResults"><p>No comparison data available.</p></div>
-        <canvas id="comparisonChart" style="display:none;margin-top:10px" height="200"></canvas>
-      </div>
+<div class="app">
+  <div class="header">
+    <div class="header-title">Deception Vector Observatory</div>
+    <div class="header-sub">
+      Secret Hitler AI Benchmark — Mechanistic Interpretability Research
+      <span class="header-badge">Anthropic-Style</span>
     </div>
   </div>
-  <script>
-    let pollInterval = null;
-    async function startGame() {
-      const n = document.getElementById('numGames').value;
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('statusBar').style.display = 'block';
-      document.getElementById('statusBar').textContent = 'Starting games...';
-      try {
-        await fetch('/api/start_game', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ num_games: parseInt(n) }) });
-        pollInterval = setInterval(pollStatus, 2000);
-      } catch (e) { document.getElementById('statusBar').textContent = 'Error: ' + e.message }
-    }
-    async function pollStatus() {
-      try {
-        const r = await fetch('/api/status'); const d = await r.json();
-        const logEl = document.getElementById('gameLog');
-        logEl.innerHTML = d.log.map(l => formatLog(l)).join('');
-        logEl.scrollTop = logEl.scrollHeight;
-        document.getElementById('statusBar').textContent = d.in_progress ? `Game in progress... (${d.total_log_lines} events)` : 'Games completed!';
-        if (!d.in_progress) { clearInterval(pollInterval); document.getElementById('startBtn').disabled = false; refreshResults(); refreshMI(); }
-      } catch (e) { }
-    }
-    async function refreshResults() {
-      try {
-        const r = await fetch('/api/results'); const d = await r.json();
-        if (!d.summary) return; const s = d.summary;
-        document.getElementById('winRate').innerHTML = `
-      <div class="stat"><span>Total Games</span><span>${s.total_games}</span></div>
-      <div class="stat"><span>Liberal Wins</span><span style="color:#4CAF50">${s.liberal_wins}</span></div>
-      <div class="stat"><span>Fascist Wins</span><span style="color:#e94560">${s.fascist_wins}</span></div>
-      <div class="stat"><span>Avg Rounds/Game</span><span>${s.avg_rounds}</span></div>
-      <div class="bar-container"><div class="bar liberal" style="width:${s.total_games ? s.liberal_wins / s.total_games * 100 : 0}%">Liberals ${s.liberal_wins}</div></div>
-      <div class="bar-container"><div class="bar fascist" style="width:${s.total_games ? s.fascist_wins / s.total_games * 100 : 0}%">Fascists ${s.fascist_wins}</div></div>`;
-        const tv = s.fascist_vote_breakdown.ja_votes + s.fascist_vote_breakdown.nein_votes;
-        document.getElementById('deceptionMetrics').innerHTML = `
-      <div class="stat"><span>Deception Rate (Fascist Ja! votes)</span><span style="color:#ff9800">${s.deception_rate}%</span></div>
-      <div class="stat"><span>Fascist Ja! Votes</span><span>${s.fascist_vote_breakdown.ja_votes}</span></div>
-      <div class="stat"><span>Fascist Nein! Votes</span><span>${s.fascist_vote_breakdown.nein_votes}</span></div>
-      <div class="bar-container"><div class="bar" style="width:${s.deception_rate}%;background:#ff9800">Deception ${s.deception_rate}%</div></div>`;
-        const p = s.policies_enacted;
-        document.getElementById('policyBreakdown').innerHTML = `
-      <div class="stat"><span>Liberal by Liberal Gov</span><span style="color:#4CAF50">${p.liberal_by_liberal_gov}</span></div>
-      <div class="stat"><span>Fascist by Liberal Gov</span><span style="color:#e94560">${p.fascist_by_liberal_gov}</span></div>
-      <div class="stat"><span>Liberal by Fascist Gov</span><span style="color:#ff9800">${p.liberal_by_fascist_gov}</span></div>
-      <div class="stat"><span>Fascist by Fascist Gov</span><span style="color:#e94560">${p.fascist_by_fascist_gov}</span></div>`;
-        let modelsHtml = '';
-        d.results.forEach((g, i) => {
-          modelsHtml += `<div class="game-detail"><strong>Game ${g.game_number}</strong> - Winner: <span class="${g.winner === 'Liberals' ? 'role-liberal' : 'role-fascist'}">${g.winner}</span><div class="models-list">`;
-          Object.entries(g.models_used).forEach(([name, info]) => {
-            const rc = info.role === 'a Liberal' ? 'role-liberal' : info.role === 'Hitler' ? 'role-hitler' : 'role-fascist';
-            modelsHtml += `<span class="model-tag">${name} (<span class="${rc}">${info.role}</span>) - ${info.model}</span>`;
-          });
-          modelsHtml += `</div></div>`;
-        });
-        document.getElementById('modelsInfo').innerHTML = modelsHtml || '<p>No data</p>';
-        document.getElementById('gameResults').innerHTML = d.results.map((g, i) => `<div class="game-detail"><strong>Game ${g.game_number}</strong>: ${g.winner} win in ${g.total_rounds} rounds</div>`).join('') || '<p>No games</p>';
-      } catch (e) { }
-    }
-    async function clearResults() {
-      await fetch('/api/clear'); refreshResults(); document.getElementById('winRate').innerHTML = '<p>Cleared.</p>';
-      document.getElementById('deceptionMetrics').innerHTML = '<p>Cleared.</p>'; document.getElementById('policyBreakdown').innerHTML = '<p>Cleared.</p>';
-      document.getElementById('modelsInfo').innerHTML = '<p>Cleared.</p>'; document.getElementById('gameResults').innerHTML = '<p>Cleared.</p>';
-      document.getElementById('gameLog').innerHTML = '<p>Cleared.</p>';
-    }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML }
-    function formatLog(line) {
-      const e = esc(line);
-      // Vote with reasoning
-      const voteMatch = e.match(/^(.+?) votes (Ja!|Nein!) — Reasoning: (.+)$/);
-      if (voteMatch) {
-        const cls = voteMatch[2] === 'Ja!' ? 'vote-ja' : 'vote-nein';
-        return `<p><strong>${voteMatch[1]}</strong> votes <span class="${cls}">${voteMatch[2]}</span></p><span class="reasoning">💭 ${voteMatch[3]}</span>`;
-      }
-      // Hidden thought (MI)
-      if (e.includes('[HIDDEN]')) { return `<p style="color:#7b2ff7;font-size:11px;margin-left:20px;opacity:0.85">🧠 ${e.replace('🧠 ', '')}</p>` }
-      // Deception label
-      if (e.includes('[DECEPTIVE]')) { return `<p style="margin-left:20px"><span class="label-deceptive">🏷️ DECEPTIVE</span> ${e.replace(/🏷️ \[DECEPTIVE\]/, '')}</p>` }
-      if (e.includes('[TRUTHFUL]')) { return `<p style="margin-left:20px"><span class="label-truthful">🏷️ TRUTHFUL</span> ${e.replace(/🏷️ \[TRUTHFUL\]/, '')}</p>` }
-      if (e.includes('[STRATEGIC_TRUTH]')) { return `<p style="margin-left:20px"><span class="label-strategic">🏷️ STRATEGIC</span> ${e.replace(/🏷️ \[STRATEGIC_TRUTH\]/, '')}</p>` }
-      if (e.includes('[UNKNOWN]')) { return `<p style="margin-left:20px"><span class="label-unknown">🏷️ UNKNOWN</span> ${e.replace(/🏷️ \[UNKNOWN\]/, '')}</p>` }
-      // Suspicion probe
-      if (e.includes('[SUSPICION]')) { return `<p style="color:#e6c300;font-size:11px;margin-left:15px">🔍 ${e.replace('🔍 ', '')}</p>` }
-      if (e.includes('Suspicion Probe')) { return `<p style="color:#e6c300;font-weight:bold;border-top:1px dashed #7b2ff7;padding-top:4px;margin-top:4px">${e}</p>` }
-      // Discussion
-      if (e.includes('💬 ')) { return `<p style="color:#a8dadc;margin-left:10px">${e}</p>` }
-      // Discussion header
-      if (e.startsWith('--- Discussion')) { return `<p style="color:#457b9d;font-weight:bold;border-top:1px dashed #333;padding-top:4px;margin-top:4px">🗣️ ${e}</p>` }
-      // Secret policy reasoning
-      if (e.includes('[SECRET]')) { return `<p style="color:#ff6b6b;font-size:11px;margin-left:15px;opacity:0.8">🔒 ${e.replace('🔒 ', '')}</p>` }
-      // Round header
-      if (e.startsWith('Round ')) { return `<p class="round-header">🔄 ${e}</p>` }
-      // Enacted policy
-      if (e.startsWith('Enacted:')) { return `<p class="enacted">📜 ${e}</p>` }
-      // Game over
-      if (e.includes('GAME OVER')) { return `<p class="game-over">🏁 ${e}</p>` }
-      // Nomination with reasoning
-      if (e.includes('nominate') || e.includes('Nominate')) { return `<p>🎯 ${e}</p>` }
-      // Execution
-      if (e.includes('executes')) { return `<p style="color:#e94560;font-weight:bold">⚔️ ${e}</p>` }
-      return `<p>${e}</p>`;
-    }
-    async function saveResults() {
-      try {
-        const r = await fetch('/api/save', { method: 'POST' }); const d = await r.json();
-        if (d.error) { alert('⚠️ ' + d.error); return; }
-        alert('✅ Saved to: ' + d.file);
-      } catch (e) { alert('Error saving: ' + e.message) }
-    }
-    function downloadResults() { window.location.href = '/api/download'; }
-    function exportMI() { window.location.href = '/api/mi_export'; }
-    async function refreshMI() {
-      try {
-        const r = await fetch('/api/mi_summary'); const d = await r.json();
-        if (d.error) return;
-        document.getElementById('miMetrics').innerHTML = `
-      <div class="stat"><span>Total Interactions</span><span>${d.total_interactions}</span></div>
-      <div class="stat"><span>Deceptive Statements</span><span class="label-deceptive">${d.total_deceptive}</span></div>
-      <div class="stat"><span>Truthful Statements</span><span class="label-truthful">${d.total_truthful}</span></div>
-      <div class="stat"><span>Overall Deception Rate</span><span class="label-deceptive">${d.overall_deception_rate}%</span></div>
-      <div class="stat"><span>Hitler Detection Rate</span><span style="color:#e6c300">${d.hitler_detection_rate}%</span></div>
-      <div class="bar-container"><div class="bar deceptive" style="width:${d.overall_deception_rate}%">Deceptive ${d.overall_deception_rate}%</div></div>
-      <div class="bar-container"><div class="bar truthful" style="width:${100 - d.overall_deception_rate}%">Truthful ${(100 - d.overall_deception_rate).toFixed(1)}%</div></div>`;
-        // Suspicion matrix from latest game
-        const rr = await fetch('/api/results'); const dd = await rr.json();
-        if (dd.results && dd.results.length > 0) {
-          const latest = dd.results[dd.results.length - 1];
-          const mi = latest.mi_data;
-          if (mi && mi.suspicion_matrices && mi.suspicion_matrices.length > 0) {
-            const lastMatrix = mi.suspicion_matrices[mi.suspicion_matrices.length - 1];
-            let html = '<table class="suspicion-table"><tr><th>Observer</th>';
-            const allNames = new Set();
-            lastMatrix.probes.forEach(p => { Object.keys(p.suspicions).forEach(n => allNames.add(n)); allNames.add(p.player) });
-            const names = [...allNames].sort();
-            names.forEach(n => html += `<th>${n}</th>`);
-            html += '<th>Hitler Guess</th></tr>';
-            lastMatrix.probes.forEach(p => {
-              const rc = p.role === 'a Liberal' ? 'role-liberal' : p.role === 'Hitler' ? 'role-hitler' : 'role-fascist';
-              html += `<tr><td><span class="${rc}">${p.player}</span></td>`;
-              names.forEach(n => {
-                if (n === p.player) { html += '<td>—</td>'; return; }
-                const score = p.suspicions[n] || 0;
-                const cls = score >= 7 ? 'suspicion-high' : score >= 4 ? 'suspicion-med' : 'suspicion-low';
-                html += `<td class="${cls}">${score}</td>`;
-              });
-              html += `<td>${p.likely_hitler || '?'} (${p.confidence})</td></tr>`;
-            });
-            html += '</table>';
-            document.getElementById('suspicionMatrix').innerHTML = html;
-          }
-        }
-      } catch (e) { }
-    }
-    async function refreshMIPipeline() {
-      // Extraction status
-      try {
-        const r = await fetch('/api/mi/extract_status'); const d = await r.json();
-        if (d.status === 'completed') {
-          document.getElementById('extractStatus').innerHTML = `
-            <div class="stat"><span>Status</span><span style="color:#4CAF50">✓ Completed</span></div>
-            <div class="stat"><span>Model</span><span>${d.model}</span></div>
-            <div class="stat"><span>Interactions</span><span>${d.num_interactions}</span></div>
-            <div class="stat"><span>Layers</span><span>${d.num_layers}</span></div>`;
-        }
-      } catch(e) {}
-      // Probe results
-      try {
-        const r = await fetch('/api/mi/probe_results'); const d = await r.json();
-        if (d.status === 'completed' && d.layers.length > 0) {
-          let html = `<div class="stat"><span>Best AUROC</span><span style="color:#4CAF50">${d.best_auroc.toFixed(3)}</span></div>
-            <div class="stat"><span>Best Layer</span><span>${d.best_layer}</span></div>
-            <div class="stat"><span>Aggregation</span><span>${d.aggregation}</span></div>`;
-          document.getElementById('probeResults').innerHTML = html;
-          // Render bar chart
-          const canvas = document.getElementById('probeChart');
-          canvas.style.display = 'block';
-          const ctx = canvas.getContext('2d');
-          const w = canvas.width = canvas.parentElement.clientWidth;
-          const h = 200;
-          ctx.clearRect(0, 0, w, h);
-          const barW = Math.max(w / d.layers.length - 2, 3);
-          d.layers.forEach((l, i) => {
-            const x = i * (barW + 2);
-            const barH = l.auroc * (h - 30);
-            ctx.fillStyle = l.auroc > 0.7 ? '#4CAF50' : l.auroc > 0.5 ? '#ff9800' : '#e94560';
-            ctx.fillRect(x, h - 30 - barH, barW, barH);
-            if (d.layers.length <= 30) {
-              ctx.fillStyle = '#888'; ctx.font = '9px monospace';
-              ctx.fillText(l.layer, x, h - 18);
-              ctx.fillText(l.auroc.toFixed(2), x, h - 6);
-            }
-          });
-          // Chance line
-          ctx.strokeStyle = '#e94560'; ctx.setLineDash([4,4]);
-          ctx.beginPath(); ctx.moveTo(0, h - 30 - 0.5*(h-30)); ctx.lineTo(w, h - 30 - 0.5*(h-30)); ctx.stroke();
-        }
-      } catch(e) {}
-      // Comparison
-      try {
-        const r = await fetch('/api/mi/comparison'); const d = await r.json();
-        if (d.status === 'completed' && d.layers.length > 0) {
-          document.getElementById('comparisonResults').innerHTML = `
-            <div class="stat"><span>Best Improvement Layer</span><span>${d.best_improvement_layer}</span></div>
-            <div class="stat"><span>Max AUROC Delta</span><span style="color:${d.max_auroc_delta > 0 ? '#4CAF50' : '#e94560'}">${d.max_auroc_delta > 0 ? '+' : ''}${d.max_auroc_delta.toFixed(3)}</span></div>`;
-          const canvas = document.getElementById('comparisonChart');
-          canvas.style.display = 'block';
-          const ctx = canvas.getContext('2d');
-          const w = canvas.width = canvas.parentElement.clientWidth;
-          const h = 200;
-          ctx.clearRect(0, 0, w, h);
-          const barW = Math.max(w / d.layers.length / 2 - 2, 2);
-          d.layers.forEach((l, i) => {
-            const x = i * (barW * 2 + 4);
-            const bH = l.base_auroc * (h - 30);
-            const fH = l.finetuned_auroc * (h - 30);
-            ctx.fillStyle = '#4a9eff'; ctx.fillRect(x, h - 30 - bH, barW, bH);
-            ctx.fillStyle = '#ff6b6b'; ctx.fillRect(x + barW + 1, h - 30 - fH, barW, fH);
-          });
-          ctx.fillStyle = '#4a9eff'; ctx.fillRect(10, 5, 12, 12); ctx.fillStyle='#ccc'; ctx.font='11px sans-serif'; ctx.fillText('Base', 26, 15);
-          ctx.fillStyle = '#ff6b6b'; ctx.fillRect(70, 5, 12, 12); ctx.fillStyle='#ccc'; ctx.fillText('Fine-tuned', 86, 15);
-        }
-      } catch(e) {}
-    }
-    refreshResults(); refreshMI(); refreshMIPipeline();
-  </script>
-</body>
 
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Games</span>
+      <input type="number" id="numGames" value="1" min="1" max="5">
+    </div>
+    <button id="startBtn" class="btn btn-primary" onclick="startGame()">&#9654; Run</button>
+    <button class="btn btn-secondary" onclick="clearResults()">&#10005; Clear</button>
+    <button class="btn btn-secondary" onclick="refreshAll()">&#8635; Refresh</button>
+    <button class="btn btn-secondary" onclick="saveResults()">&#128190; Save</button>
+    <button class="btn btn-secondary" onclick="downloadResults()">&#8595; Download</button>
+    <button class="btn btn-vector" onclick="exportMI()">&#129504; Export MI</button>
+  </div>
+
+  <div id="statusBar" class="status-bar" style="display:none"></div>
+
+  <!-- ═══ GAME SECTION ═══ -->
+  <div class="section-divider"><span>Game Simulation</span></div>
+  <div class="section-grid">
+    <div class="card card-game">
+      <div class="card-title"><span class="dot"></span> Win Rate</div>
+      <div id="winRate"><div class="placeholder">No data yet. Run a benchmark.</div></div>
+    </div>
+    <div class="card card-game">
+      <div class="card-title"><span class="dot"></span> Deception Metrics</div>
+      <div id="deceptionMetrics"><div class="placeholder">No data yet.</div></div>
+    </div>
+    <div class="card card-game">
+      <div class="card-title"><span class="dot"></span> Policy Breakdown</div>
+      <div id="policyBreakdown"><div class="placeholder">No data yet.</div></div>
+    </div>
+    <div class="card card-game">
+      <div class="card-title"><span class="dot"></span> Models & Roles</div>
+      <div id="modelsInfo"><div class="placeholder">No data yet.</div></div>
+    </div>
+  </div>
+
+  <div class="section-grid" style="padding:0 24px 8px">
+    <div class="card card-game full-width">
+      <div class="card-title"><span class="dot"></span> Game Log</div>
+      <div id="gameLog" class="log-box"><div class="placeholder">Waiting for game to start...</div></div>
+    </div>
+  </div>
+
+  <div class="section-grid" style="padding:0 24px 24px">
+    <div class="card card-game full-width">
+      <div class="card-title"><span class="dot"></span> Individual Results</div>
+      <div id="gameResults"><div class="placeholder">No games played yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ MI DECEPTION ═══ -->
+  <div class="section-divider"><span>Hidden Thought Analysis</span></div>
+  <div class="section-grid" style="padding-bottom:24px">
+    <div class="card card-mi">
+      <div class="card-title"><span class="dot"></span> MI Deception Analysis</div>
+      <div id="miMetrics"><div class="placeholder">Run a game to see MI data.</div></div>
+    </div>
+    <div class="card card-mi">
+      <div class="card-title"><span class="dot"></span> Suspicion Matrix</div>
+      <div id="suspicionMatrix"><div class="placeholder">Run a game to see suspicion data.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ VECTOR EXTRACTION ═══ -->
+  <div class="section-divider"><span>Deception Vectors</span></div>
+  <div class="section-grid" style="padding-bottom:0">
+    <div class="card card-vector">
+      <div class="card-title"><span class="dot"></span> Extraction Status</div>
+      <div id="extractStatus"><div class="placeholder">No experiments run yet.</div></div>
+    </div>
+    <div class="card card-vector">
+      <div class="card-title"><span class="dot"></span> Vector AUROC by Layer</div>
+      <div id="vectorResults"><div class="placeholder">No vector extraction run yet.</div></div>
+      <canvas id="vectorChart" class="chart-area" style="display:none" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══ CAUSAL STEERING ═══ -->
+  <div class="section-grid" style="padding-top:16px; padding-bottom:0">
+    <div class="card card-steer full-width">
+      <div class="card-title"><span class="dot"></span> Causal Steering Experiment</div>
+      <div id="steeringResults"><div class="placeholder">No steering experiment run yet. Use <code style="color:var(--accent-cyan)">python -m mi.steering</code> to generate results.</div></div>
+      <canvas id="steeringChart" class="chart-area" style="display:none" height="240"></canvas>
+    </div>
+  </div>
+
+  <!-- ═──── PROBE + COMPARISON ═══ -->
+  <div class="section-grid" style="padding-top:16px; padding-bottom:0">
+    <div class="card card-vector">
+      <div class="card-title"><span class="dot"></span> LR Probe (Baseline)</div>
+      <div id="probeResults"><div class="placeholder">No probe results yet.</div></div>
+      <canvas id="probeChart" class="chart-area" style="display:none;margin-top:12px" height="220"></canvas>
+    </div>
+    <div class="card card-compare">
+      <div class="card-title"><span class="dot"></span> Vector Comparison (Base vs Fine-tuned)</div>
+      <div id="comparisonResults"><div class="placeholder">No comparison data available. Use <code style="color:var(--accent-purple)">python -m mi.analysis</code> to generate.</div></div>
+      <canvas id="comparisonChart" class="chart-area" style="display:none" height="220"></canvas>
+    </div>
+  </div>
+  <div style="padding:24px"></div>
+</div>
+
+<script>
+let pollInterval = null;
+
+async function startGame() {
+  const n = document.getElementById('numGames').value;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('statusBar').style.display = 'block';
+  document.getElementById('statusBar').textContent = 'Starting games...';
+  try {
+    await fetch('/api/start_game', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({num_games:parseInt(n)}) });
+    pollInterval = setInterval(pollStatus, 2000);
+  } catch(e) { document.getElementById('statusBar').textContent = 'Error: ' + e.message; }
+}
+
+async function pollStatus() {
+  try {
+    const r = await fetch('/api/status'); const d = await r.json();
+    const logEl = document.getElementById('gameLog');
+    logEl.innerHTML = d.log.map(l => formatLog(l)).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+    document.getElementById('statusBar').textContent = d.in_progress ? `Game in progress... (${d.total_log_lines} events)` : 'Games completed!';
+    if (!d.in_progress) { clearInterval(pollInterval); document.getElementById('startBtn').disabled = false; refreshResults(); refreshMI(); }
+  } catch(e) {}
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function formatLog(line) {
+  const e = esc(line);
+  if (e.match(/^(.+?) votes (Ja!|Nein!) — Reasoning:/)) {
+    const m = e.match(/^(.+?) votes (Ja!|Nein!) — Reasoning: (.+)$/);
+    if (m) { const cls = m[2]==='Ja!' ? 'log-line-vote-ja' : 'log-line-vote-nein'; return `<p><strong>${m[1]}</strong> votes <span class="${cls}">${m[2]}</span></p><p class="log-line-hidden">💭 ${m[3]}</p>`; }
+  }
+  if (e.includes('[HIDDEN]')) return `<p class="log-line-hidden">🧠 ${e.replace('🧠 ','')}</p>`;
+  if (e.includes('[DECEPTIVE]')) return `<p style="margin-left:16px"><span class="label-tag deceptive">DECEPTIVE</span> ${e.replace(/🏷️ \[DECEPTIVE\]/,'')}</p>`;
+  if (e.includes('[TRUTHFUL]')) return `<p style="margin-left:16px"><span class="label-tag truthful">TRUTHFUL</span> ${e.replace(/🏷️ \[TRUTHFUL\]/,'')}</p>`;
+  if (e.includes('[STRATEGIC_TRUTH]')) return `<p style="margin-left:16px"><span class="label-tag strategic">STRATEGIC</span> ${e.replace(/🏷️ \[STRATEGIC_TRUTH\]/,'')}</p>`;
+  if (e.includes('[UNKNOWN]')) return `<p style="margin-left:16px"><span class="label-tag unknown">UNKNOWN</span> ${e.replace(/🏷️ \[UNKNOWN\]/,'')}</p>`;
+  if (e.includes('[SUSPICION]')) return `<p class="log-line-suspicion">🔍 ${e.replace('🔍 ','')}</p>`;
+  if (e.includes('Suspicion Probe')) return `<p class="log-line-suspicion-header">🔍 ${e}</p>`;
+  if (e.includes('💬 ')) return `<p class="log-line-discuss">${e}</p>`;
+  if (e.startsWith('--- Discussion')) return `<p class="log-line-discuss-header">🗣️ ${e}</p>`;
+  if (e.includes('[SECRET]')) return `<p class="log-line-secret">🔒 ${e.replace('🔒 ','')}</p>`;
+  if (e.startsWith('Round ')) return `<p class="log-line-round">🔄 ${e}</p>`;
+  if (e.startsWith('Enacted:')) return `<p class="log-line-enacted">📜 ${e}</p>`;
+  if (e.includes('GAME OVER')) return `<p class="log-line-gameover">🏁 ${e}</p>`;
+  if (e.includes('nominate') || e.includes('Nominate')) return `<p>🎯 ${e}</p>`;
+  if (e.includes('executes')) return `<p style="color:var(--accent-red);font-weight:bold">⚔️ ${e}</p>`;
+  return `<p>${e}</p>`;
+}
+
+async function refreshResults() {
+  try {
+    const r = await fetch('/api/results'); const d = await r.json();
+    if (!d.summary) return; const s = d.summary;
+    document.getElementById('winRate').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Total Games</span><span class="stat-value">${s.total_games}</span></div>
+      <div class="stat-row"><span class="stat-label">Liberal Wins</span><span class="stat-value c-green">${s.liberal_wins}</span></div>
+      <div class="stat-row"><span class="stat-label">Fascist Wins</span><span class="stat-value c-red">${s.fascist_wins}</span></div>
+      <div class="stat-row"><span class="stat-label">Avg Rounds</span><span class="stat-value">${s.avg_rounds}</span></div>
+      <div class="bar-track"><div class="bar-fill green" style="width:${s.total_games?s.liberal_wins/s.total_games*100:0}%">Liberals ${s.liberal_wins}</div></div>
+      <div class="bar-track"><div class="bar-fill red" style="width:${s.total_games?s.fascist_wins/s.total_games*100:0}%">Fascists ${s.fascist_wins}</div></div>`;
+    document.getElementById('deceptionMetrics').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Deception Rate</span><span class="stat-value c-amber">${s.deception_rate}%</span></div>
+      <div class="stat-row"><span class="stat-label">Fascist Ja! Votes</span><span class="stat-value">${s.fascist_vote_breakdown.ja_votes}</span></div>
+      <div class="stat-row"><span class="stat-label">Fascist Nein! Votes</span><span class="stat-value">${s.fascist_vote_breakdown.nein_votes}</span></div>
+      <div class="bar-track"><div class="bar-fill amber" style="width:${s.deception_rate}%">Deception ${s.deception_rate}%</div></div>`;
+    const p = s.policies_enacted;
+    document.getElementById('policyBreakdown').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Liberal by Liberal Gov</span><span class="stat-value c-green">${p.liberal_by_liberal_gov}</span></div>
+      <div class="stat-row"><span class="stat-label">Fascist by Liberal Gov</span><span class="stat-value c-red">${p.fascist_by_liberal_gov}</span></div>
+      <div class="stat-row"><span class="stat-label">Liberal by Fascist Gov</span><span class="stat-value c-amber">${p.liberal_by_fascist_gov}</span></div>
+      <div class="stat-row"><span class="stat-label">Fascist by Fascist Gov</span><span class="stat-value c-red">${p.fascist_by_fascist_gov}</span></div>`;
+    let mh='';
+    d.results.forEach(g => {
+      mh += `<div class="game-detail"><strong>Game ${g.game_number}</strong> — <span class="${g.winner==='Liberals'?'role-liberal':'role-fascist'}">${g.winner}</span><div class="models-list">`;
+      Object.entries(g.models_used).forEach(([n,info]) => {
+        const rc = info.role==='a Liberal'?'role-liberal':info.role==='Hitler'?'role-hitler':'role-fascist';
+        mh += `<span class="model-tag">${n} (<span class="${rc}">${info.role}</span>) — ${info.model}</span>`;
+      });
+      mh += '</div></div>';
+    });
+    document.getElementById('modelsInfo').innerHTML = mh || '<div class="placeholder">No data</div>';
+    document.getElementById('gameResults').innerHTML = d.results.map(g => `<div class="game-detail"><strong>Game ${g.game_number}</strong>: ${g.winner} win in ${g.total_rounds} rounds</div>`).join('') || '<div class="placeholder">No games</div>';
+  } catch(e) {}
+}
+
+async function clearResults() {
+  await fetch('/api/clear');
+  ['winRate','deceptionMetrics','policyBreakdown','modelsInfo','gameResults'].forEach(id => {
+    document.getElementById(id).innerHTML = '<div class="placeholder">Cleared.</div>';
+  });
+  document.getElementById('gameLog').innerHTML = '<div class="placeholder">Cleared.</div>';
+}
+
+async function saveResults() {
+  try { const r = await fetch('/api/save',{method:'POST'}); const d = await r.json(); alert(d.error ? '⚠️ '+d.error : '✅ Saved: '+d.file); } catch(e) { alert('Error: '+e.message); }
+}
+function downloadResults() { window.location.href='/api/download'; }
+function exportMI() { window.location.href='/api/mi_export'; }
+
+async function refreshMI() {
+  try {
+    const r = await fetch('/api/mi_summary'); const d = await r.json();
+    if (d.error) return;
+    document.getElementById('miMetrics').innerHTML = `
+      <div class="stat-row"><span class="stat-label">Total Interactions</span><span class="stat-value">${d.total_interactions}</span></div>
+      <div class="stat-row"><span class="stat-label">Deceptive</span><span class="stat-value c-amber">${d.total_deceptive}</span></div>
+      <div class="stat-row"><span class="stat-label">Truthful</span><span class="stat-value c-green">${d.total_truthful}</span></div>
+      <div class="stat-row"><span class="stat-label">Deception Rate</span><span class="stat-value c-amber">${d.overall_deception_rate}%</span></div>
+      <div class="stat-row"><span class="stat-label">Hitler Detection</span><span class="stat-value c-purple">${d.hitler_detection_rate}%</span></div>
+      <div class="bar-track"><div class="bar-fill amber" style="width:${d.overall_deception_rate}%">Deceptive ${d.overall_deception_rate}%</div></div>
+      <div class="bar-track"><div class="bar-fill green" style="width:${100-d.overall_deception_rate}%">Truthful ${(100-d.overall_deception_rate).toFixed(1)}%</div></div>`;
+    const rr = await fetch('/api/results'); const dd = await rr.json();
+    if (dd.results && dd.results.length > 0) {
+      const latest = dd.results[dd.results.length-1];
+      const mi = latest.mi_data;
+      if (mi && mi.suspicion_matrices && mi.suspicion_matrices.length > 0) {
+        const lastMatrix = mi.suspicion_matrices[mi.suspicion_matrices.length-1];
+        let html = '<table class="suspicion-table"><tr><th>Observer</th>';
+        const allNames = new Set();
+        lastMatrix.probes.forEach(p => { Object.keys(p.suspicions).forEach(n => allNames.add(n)); allNames.add(p.player); });
+        const names = [...allNames].sort();
+        names.forEach(n => html += `<th>${n}</th>`);
+        html += '<th>Hitler Guess</th></tr>';
+        lastMatrix.probes.forEach(p => {
+          const rc = p.role==='a Liberal'?'role-liberal':p.role==='Hitler'?'role-hitler':'role-fascist';
+          html += `<tr><td><span class="${rc}">${p.player}</span></td>`;
+          names.forEach(n => { if(n===p.player){html+='<td>—</td>';return;} const sc=p.suspicions[n]||0; const cls=sc>=7?'suspicion-high':sc>=4?'suspicion-med':'suspicion-low'; html+=`<td class="${cls}">${sc}</td>`; });
+          html += `<td>${p.likely_hitler||'?'} (${p.confidence})</td></tr>`;
+        });
+        html += '</table>';
+        document.getElementById('suspicionMatrix').innerHTML = html;
+      }
+    }
+  } catch(e) {}
+}
+
+async function refreshMIPipeline() {
+  // Extraction status
+  try {
+    const r = await fetch('/api/mi/extract_status'); const d = await r.json();
+    if (d.status === 'completed') {
+      document.getElementById('extractStatus').innerHTML = `
+        <div class="stat-row"><span class="stat-label">Status</span><span class="stat-value c-green">✓ Completed</span></div>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">${d.model}</span></div>
+        <div class="stat-row"><span class="stat-label">Interactions</span><span class="stat-value">${d.num_interactions}</span></div>
+        <div class="stat-row"><span class="stat-label">Layers</span><span class="stat-value">${d.num_layers}</span></div>`;
+    }
+  } catch(e) {}
+
+  // Vector AUROC results
+  try {
+    const r = await fetch('/api/mi/vector_results'); const d = await r.json();
+    if (d.status === 'completed' && d.layers && d.layers.length > 0) {
+      let html = `
+        <div class="stat-row"><span class="stat-label">Best AUROC</span><span class="stat-value c-cyan">${d.best_auroc.toFixed(4)}</span></div>
+        <div class="stat-row"><span class="stat-label">Best Layer</span><span class="stat-value c-cyan">L${d.best_layer}</span></div>
+        <div class="stat-row"><span class="stat-label">Label</span><span class="stat-value">${d.label_field}</span></div>
+        <div class="stat-row"><span class="stat-label">Samples</span><span class="stat-value">${d.num_positive}+ / ${d.num_negative}−</span></div>`;
+      document.getElementById('vectorResults').innerHTML = html;
+      drawVectorChart(d);
+    }
+  } catch(e) {}
+
+  // LR probe results
+  try {
+    const r = await fetch('/api/mi/probe_results'); const d = await r.json();
+    if (d.status === 'completed' && d.layers && d.layers.length > 0) {
+      let html = `
+        <div class="stat-row"><span class="stat-label">Best AUROC</span><span class="stat-value">${d.best_auroc.toFixed(4)}</span></div>
+        <div class="stat-row"><span class="stat-label">Best Layer</span><span class="stat-value">L${d.best_layer}</span></div>
+        <div class="stat-row"><span class="stat-label">Method</span><span class="stat-value">${d.aggregation}</span></div>`;
+      document.getElementById('probeResults').innerHTML = html;
+      drawProbeChart(d);
+    }
+  } catch(e) {}
+
+  // Steering results
+  try {
+    const r = await fetch('/api/mi/steering_results'); const d = await r.json();
+    if (d.status === 'completed' && d.coefficients && d.coefficients.length > 0) {
+      let html = `
+        <div class="stat-row"><span class="stat-label">Steering Layer</span><span class="stat-value c-amber">L${d.steering_layer}</span></div>
+        <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">${d.model}</span></div>
+        <div class="stat-row"><span class="stat-label">Prompts × Completions</span><span class="stat-value">${d.num_prompts} × ${d.num_completions}</span></div>`;
+      d.coefficients.forEach(c => {
+        html += `<div class="stat-row"><span class="stat-label">coeff=${c.coefficient >= 0 ? '+' : ''}${c.coefficient.toFixed(1)}</span>
+          <span class="stat-value ${c.deception_rate > 0.5 ? 'c-amber' : 'c-green'}">${(c.deception_rate * 100).toFixed(1)}%</span></div>`;
+      });
+      document.getElementById('steeringResults').innerHTML = html;
+      drawSteeringChart(d);
+    }
+  } catch(e) {}
+
+  // Vector comparison
+  try {
+    const r = await fetch('/api/mi/vector_comparison'); const d = await r.json();
+    if (d.status === 'completed') {
+      let html = `
+        <div class="stat-row"><span class="stat-label">Mean Cosine Sim</span><span class="stat-value c-purple">${(d.mean_cosine_similarity||0).toFixed(4)}</span></div>
+        <div class="stat-row"><span class="stat-label">Max Cosine Sim</span><span class="stat-value c-purple">${(d.max_cosine_similarity||0).toFixed(4)}</span></div>`;
+      if (d.probe_layers && d.probe_layers.length > 0) {
+        const best = d.probe_layers.reduce((a,b) => a.delta > b.delta ? a : b, d.probe_layers[0]);
+        html += `<div class="stat-row"><span class="stat-label">Best Delta Layer</span><span class="stat-value c-purple">L${best.layer}</span></div>
+          <div class="stat-row"><span class="stat-label">Max AUROC Delta</span><span class="stat-value ${best.delta>0?'c-green':'c-red'}">${best.delta>0?'+':''}${best.delta.toFixed(4)}</span></div>`;
+      }
+      document.getElementById('comparisonResults').innerHTML = html;
+      if (d.vector_layers && d.vector_layers.length > 0) drawComparisonChart(d);
+    }
+  } catch(e) {}
+
+  // Legacy comparison endpoint
+  try {
+    const r = await fetch('/api/mi/comparison'); const d = await r.json();
+    if (d.status === 'completed' && d.layers && d.layers.length > 0 && !document.querySelector('#comparisonResults .stat-row')) {
+      let html = `
+        <div class="stat-row"><span class="stat-label">Best Improvement</span><span class="stat-value">L${d.best_improvement_layer}</span></div>
+        <div class="stat-row"><span class="stat-label">Max Delta</span><span class="stat-value ${d.max_auroc_delta>0?'c-green':'c-red'}">${d.max_auroc_delta>0?'+':''}${d.max_auroc_delta.toFixed(4)}</span></div>`;
+      document.getElementById('comparisonResults').innerHTML = html;
+      drawLegacyComparisonChart(d);
+    }
+  } catch(e) {}
+}
+
+function drawVectorChart(data) {
+  const canvas = document.getElementById('vectorChart');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 40;
+  const h = 220;
+  ctx.clearRect(0, 0, w, h);
+  const layers = data.layers;
+  if (!layers || layers.length === 0) return;
+  const padL = 40, padR = 10, padT = 20, padB = 40;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  // Chance line
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + plotH * 0.5);
+  ctx.lineTo(padL + plotW, padT + plotH * 0.5);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // AUROC line
+  ctx.beginPath();
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 2;
+  layers.forEach((l, i) => {
+    const x = padL + (i / (layers.length - 1 || 1)) * plotW;
+    const y = padT + (1 - l.auroc) * plotH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  // Dots + best highlight
+  layers.forEach((l, i) => {
+    const x = padL + (i / (layers.length - 1 || 1)) * plotW;
+    const y = padT + (1 - l.auroc) * plotH;
+    const isBest = l.layer === data.best_layer;
+    ctx.beginPath();
+    ctx.arc(x, y, isBest ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = isBest ? '#00f0ff' : 'rgba(0,240,255,0.6)';
+    ctx.fill();
+    if (isBest) {
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#00f0ff';
+      ctx.font = '10px JetBrains Mono';
+      ctx.fillText(`L${l.layer}: ${l.auroc.toFixed(3)}`, x + 6, y - 6);
+    }
+  });
+  // X-axis labels (sparse)
+  ctx.fillStyle = '#555577';
+  ctx.font = '9px JetBrains Mono';
+  const step = Math.max(1, Math.floor(layers.length / 15));
+  layers.forEach((l, i) => {
+    if (i % step === 0 || i === layers.length - 1) {
+      const x = padL + (i / (layers.length - 1 || 1)) * plotW;
+      ctx.fillText(l.layer, x - 5, h - 8);
+    }
+  });
+  // Y-axis
+  ctx.fillStyle = '#555577';
+  ctx.fillText('1.0', 4, padT + 4);
+  ctx.fillText('0.5', 4, padT + plotH * 0.5 + 4);
+  ctx.fillText('0.0', 4, padT + plotH + 4);
+  ctx.fillText('AUROC', 4, padT - 6);
+  ctx.fillText('Layer', padL + plotW / 2 - 10, h - 1);
+}
+
+function drawProbeChart(data) {
+  const canvas = document.getElementById('probeChart');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 40;
+  const h = 220;
+  ctx.clearRect(0, 0, w, h);
+  const layers = data.layers;
+  if (!layers || layers.length === 0) return;
+  const barW = Math.max(w / layers.length - 2, 3);
+  const padB = 30;
+  layers.forEach((l, i) => {
+    const x = i * (barW + 2) + 4;
+    const barH = l.auroc * (h - padB - 10);
+    ctx.fillStyle = l.auroc > 0.7 ? '#00ff88' : l.auroc > 0.5 ? '#ffb800' : '#ff3366';
+    ctx.fillRect(x, h - padB - barH, barW, barH);
+    if (layers.length <= 30) {
+      ctx.fillStyle = '#555577';
+      ctx.font = '9px JetBrains Mono';
+      ctx.fillText(l.layer, x, h - 14);
+      ctx.fillText(l.auroc.toFixed(2), x, h - 4);
+    }
+  });
+  ctx.strokeStyle = 'rgba(255,51,102,0.4)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(0, h - padB - 0.5 * (h - padB));
+  ctx.lineTo(w, h - padB - 0.5 * (h - padB));
+  ctx.stroke();
+}
+
+function drawSteeringChart(data) {
+  const canvas = document.getElementById('steeringChart');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 40;
+  const h = 240;
+  ctx.clearRect(0, 0, w, h);
+  const coeffs = data.coefficients;
+  if (!coeffs || coeffs.length === 0) return;
+  const padL = 45, padR = 15, padT = 25, padB = 35;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (plotH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+  }
+  // 50% line
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(padL, padT + plotH * 0.5);
+  ctx.lineTo(padL + plotW, padT + plotH * 0.5);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#ffb800';
+  ctx.lineWidth = 2.5;
+  coeffs.forEach((c, i) => {
+    const x = padL + (i / (coeffs.length - 1 || 1)) * plotW;
+    const y = padT + (1 - c.deception_rate) * plotH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  // Dots
+  coeffs.forEach((c, i) => {
+    const x = padL + (i / (coeffs.length - 1 || 1)) * plotW;
+    const y = padT + (1 - c.deception_rate) * plotH;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = c.deception_rate > 0.5 ? '#ffb800' : '#00ff88';
+    ctx.fill();
+    ctx.fillStyle = '#8888a8';
+    ctx.font = '9px JetBrains Mono';
+    ctx.fillText(`${c.deception_rate >= 0 ? '+' : ''}${c.coefficient.toFixed(1)}`, x - 8, y - 8);
+  });
+  // Axis labels
+  ctx.fillStyle = '#555577';
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText('1.0', 5, padT + 4);
+  ctx.fillText('0.5', 5, padT + plotH * 0.5 + 4);
+  ctx.fillText('0.0', 5, padT + plotH + 4);
+  ctx.fillText('Steering Coefficient', padL + plotW / 2 - 50, h - 5);
+  ctx.save();
+  ctx.translate(12, padT + plotH / 2 + 20);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('Deception Rate', 0, 0);
+  ctx.restore();
+}
+
+function drawComparisonChart(data) {
+  const canvas = document.getElementById('comparisonChart');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 40;
+  const h = 220;
+  ctx.clearRect(0, 0, w, h);
+  const vLayers = data.vector_layers || [];
+  const pLayers = data.probe_layers || [];
+
+  if (vLayers.length > 0) {
+    const padL = 40, padR = 10, padT = 20, padB = 40;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    // Chance line
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(padL, padT + plotH * 0.5); ctx.lineTo(padL + plotW, padT + plotH * 0.5); ctx.stroke();
+    ctx.setLineDash([]);
+    // Cosine similarity bars
+    const barW = Math.max(plotW / vLayers.length - 4, 4);
+    ctx.font = '9px JetBrains Mono';
+    vLayers.forEach((l, i) => {
+      const x = padL + (i / (vLayers.length - 1 || 1)) * plotW;
+      const cs = l.cosine_similarity;
+      const barH = Math.abs(cs) * plotH * 0.8;
+      ctx.fillStyle = cs > 0.8 ? '#8b5cf6' : cs > 0.5 ? '#6d28d9' : '#4c1d95';
+      if (cs >= 0) {
+        ctx.fillRect(x, padT + plotH - barH, barW, barH);
+      } else {
+        ctx.fillRect(x, padT + plotH, barW, barH);
+      }
+      if (vLayers.length <= 30) {
+        ctx.fillStyle = '#555577';
+        ctx.fillText(l.layer, x, h - 6);
+      }
+    });
+    ctx.fillStyle = '#555577';
+    ctx.fillText('Cos. Sim.', padL, padT - 4);
+    ctx.fillText('Layer', padL + plotW / 2 - 10, h - 1);
+  }
+
+  if (pLayers.length > 0 && vLayers.length === 0) {
+    const padL = 40, padR = 10, padT = 20, padB = 40;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const barW = Math.max(plotW / pLayers.length / 2 - 2, 2);
+    pLayers.forEach((l, i) => {
+      const x = padL + (i / (pLayers.length || 1)) * plotW;
+      const bH = l.base_auroc * plotH;
+      const fH = (l.base_auroc + l.delta) * plotH;
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillRect(x, padT + plotH - bH, barW, bH);
+      ctx.fillStyle = '#ff6b6b';
+      ctx.fillRect(x + barW + 1, padT + plotH - fH, barW, fH);
+    });
+    ctx.fillStyle = '#4a9eff'; ctx.fillRect(10, 5, 12, 12);
+    ctx.fillStyle = '#ccc'; ctx.font = '11px JetBrains Mono'; ctx.fillText('Base', 26, 15);
+    ctx.fillStyle = '#ff6b6b'; ctx.fillRect(70, 5, 12, 12);
+    ctx.fillStyle = '#ccc'; ctx.fillText('Fine-tuned', 86, 15);
+  }
+}
+
+function drawLegacyComparisonChart(data) {
+  const canvas = document.getElementById('comparisonChart');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 40;
+  const h = 220;
+  ctx.clearRect(0, 0, w, h);
+  const layers = data.layers;
+  if (!layers || layers.length === 0) return;
+  const barW = Math.max(w / layers.length / 2 - 2, 2);
+  layers.forEach((l, i) => {
+    const x = i * (barW * 2 + 4) + 4;
+    const bH = l.base_auroc * (h - 30);
+    const fH = l.finetuned_auroc * (h - 30);
+    ctx.fillStyle = '#4a9eff'; ctx.fillRect(x, h - 30 - bH, barW, bH);
+    ctx.fillStyle = '#ff6b6b'; ctx.fillRect(x + barW + 1, h - 30 - fH, barW, fH);
+  });
+  ctx.fillStyle = '#4a9eff'; ctx.fillRect(10, 5, 12, 12);
+  ctx.fillStyle = '#ccc'; ctx.font = '11px JetBrains Mono'; ctx.fillText('Base', 26, 15);
+  ctx.fillStyle = '#ff6b6b'; ctx.fillRect(70, 5, 12, 12);
+  ctx.fillStyle = '#ccc'; ctx.fillText('Fine-tuned', 86, 15);
+}
+
+function refreshAll() { refreshResults(); refreshMI(); refreshMIPipeline(); }
+refreshAll();
+</script>
+</body>
 </html>

@@ -124,7 +124,83 @@ class TestDashboardPage:
     def test_mi_pipeline_section_in_html(self, client):
         resp = client.get("/")
         html = resp.data.decode()
-        assert "MI Pipeline" in html
+        assert "Deception Vectors" in html
         assert "probeChart" in html
         assert "comparisonChart" in html
         assert "extractStatus" in html
+        assert "vectorChart" in html
+        assert "steeringChart" in html
+
+    def test_vector_results_endpoint_not_run(self, client):
+        resp = client.get("/api/mi/vector_results")
+        data = resp.get_json()
+        assert data["status"] == "not_run"
+
+    def test_steering_results_endpoint_not_run(self, client):
+        resp = client.get("/api/mi/steering_results")
+        data = resp.get_json()
+        assert data["status"] == "not_run"
+
+    def test_vector_comparison_endpoint_not_run(self, client):
+        resp = client.get("/api/mi/vector_comparison")
+        data = resp.get_json()
+        assert data["status"] == "not_run"
+
+    def test_vector_results_endpoint_with_data(self, client):
+        import game.main as main_mod
+        results_dir = main_mod.RESULTS_MI_DIR
+        os.makedirs(results_dir, exist_ok=True)
+        vec_path = os.path.join(results_dir, "vector_results.json")
+        test_data = {
+            "model": "pythia-410m",
+            "label_field": "deceptive_intent",
+            "best_auroc": 0.89,
+            "best_layer": 16,
+            "num_positive": 50,
+            "num_negative": 48,
+            "per_layer_auroc": {"0": 0.62, "16": 0.89, "23": 0.71},
+        }
+        existed = os.path.exists(vec_path)
+        try:
+            with open(vec_path, "w") as f:
+                json.dump(test_data, f)
+            resp = client.get("/api/mi/vector_results")
+            data = resp.get_json()
+            assert data["status"] == "completed"
+            assert data["best_auroc"] == 0.89
+            assert data["best_layer"] == 16
+            assert len(data["layers"]) == 3
+        finally:
+            if not existed and os.path.exists(vec_path):
+                os.unlink(vec_path)
+
+    def test_steering_results_endpoint_with_data(self, client):
+        import game.main as main_mod
+        results_dir = main_mod.RESULTS_MI_DIR
+        steer_dir = os.path.join(results_dir, "steering")
+        os.makedirs(steer_dir, exist_ok=True)
+        steer_path = os.path.join(steer_dir, "steering_results.json")
+        test_data = {
+            "model": "pythia-410m",
+            "steering_layer": 16,
+            "num_prompts": 8,
+            "num_completions": 5,
+            "results": [
+                {"coefficient": -3.0, "aggregate_deception_rate": 0.1, "mean_deception_score": -1.5},
+                {"coefficient": 0.0, "aggregate_deception_rate": 0.4, "mean_deception_score": 0.1},
+                {"coefficient": 3.0, "aggregate_deception_rate": 0.8, "mean_deception_score": 2.1},
+            ],
+        }
+        existed = os.path.exists(steer_path)
+        try:
+            with open(steer_path, "w") as f:
+                json.dump(test_data, f)
+            resp = client.get("/api/mi/steering_results")
+            data = resp.get_json()
+            assert data["status"] == "completed"
+            assert data["steering_layer"] == 16
+            assert len(data["coefficients"]) == 3
+            assert data["coefficients"][2]["deception_rate"] == 0.8
+        finally:
+            if not existed and os.path.exists(steer_path):
+                os.unlink(steer_path)
