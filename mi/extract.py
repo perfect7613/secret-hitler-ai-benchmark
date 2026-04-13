@@ -200,11 +200,12 @@ def extract_dataset(
 
     # Save activations as .pt file
     # Structure: list of dicts, each dict maps layer_index -> tensor [seq_len, hidden_dim]
-    activations_path = os.path.join(output_dir, f"activations_{model_name}.pt")
+    safe_model_name = model_name.replace("/", "_")
+    activations_path = os.path.join(output_dir, f"activations_{safe_model_name}.pt")
     torch.save(all_activations, activations_path)
 
     # Save metadata sidecar
-    metadata_path = os.path.join(output_dir, f"metadata_{model_name}.json")
+    metadata_path = os.path.join(output_dir, f"metadata_{safe_model_name}.json")
     meta_output = {
         "model": model_name,
         "num_layers_extracted": len(layers),
