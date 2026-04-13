@@ -139,7 +139,7 @@ def _is_gibberish(text: str, min_words: int = 15) -> tuple[bool, float]:
     if repetition_ratio > 0.4:
         return True, 0.2
 
-    gibberish_count = sum(1 for g in GIBBERISH_INDATORS if g in text[:300])
+    gibberish_count = sum(1 for g in GIBBERISH_INDICATORS if g in text[:300])
     if gibberish_count >= 2:
         return True, 0.25
 
@@ -366,7 +366,7 @@ class SteeringExperiment:
 
         return results
 
-def classify_text(self, text: str) -> dict:
+    def classify_text(self, text: str) -> dict:
         """Classify generated text for deceptive content.
 
         Delegates to the improved classify_text_standalone function
