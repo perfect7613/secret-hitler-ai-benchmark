@@ -276,20 +276,54 @@ async function loadAll() {
     s.comp ? fetchJSON(s.comp) : Promise.resolve(null),
   ]);
 
-  vecData = v;
-  steerData = st;
+  vecData = normalizeVectorData(v);
+  steerData = normalizeSteeringData(st);
   logitData = lo;
   compData = co;
 
-  if (!v) { statusEl.textContent = 'No vector results found'; return; }
+  if (!vecData) { statusEl.textContent = 'No vector results found'; return; }
 
-  renderAuroc(v);
-  renderVectorSummary(v);
-  renderSteering(st);
-  renderLogitLens(lo);
-  renderComparison(co);
+  renderAuroc(vecData);
+  renderVectorSummary(vecData);
+  renderSteering(steerData);
+  renderLogitLens(logitData);
+  renderComparison(compData);
 
-  statusEl.textContent = 'Loaded — ' + (v.model || '') + ' — Best AUROC: ' + (v.best_auroc || 0).toFixed(4);
+  statusEl.textContent = 'Loaded — ' + (vecData.model || '') + ' — Best AUROC: ' + (vecData.best_auroc || 0).toFixed(4);
+}
+
+function normalizeVectorData(data) {
+  if (!data) return null;
+  if (data.layers && data.layers.length > 0) return data;
+  const perLayer = data.per_layer_auroc || {};
+  const layers = Object.keys(perLayer).map(k => ({layer: parseInt(k), auroc: perLayer[k]}));
+  layers.sort((a, b) => a.layer - b.layer);
+  return {
+    ...data,
+    layers: layers,
+    best_auroc: data.best_auroc !== undefined ? data.best_auroc : (layers.length > 0 ? Math.max(...layers.map(l => l.auroc)) : 0),
+    best_layer: data.best_layer !== undefined ? data.best_layer : (layers.length > 0 ? layers.reduce((a, b) => a.auroc > b.auroc ? a : b, layers[0]).layer : -1),
+    model: data.model || 'unknown',
+    num_positive: data.num_positive || 0,
+    num_negative: data.num_negative || 0,
+  };
+}
+
+function normalizeSteeringData(data) {
+  if (!data) return null;
+  if (data.results && data.results.length > 0) {
+    return {
+      ...data,
+      coefficients: data.results.map(r => ({
+        coefficient: r.coefficient,
+        aggregate_deception_rate: r.aggregate_deception_rate,
+        deception_rate: r.aggregate_deception_rate,
+        mean_deception_score: r.mean_deception_score,
+        mean_score: r.mean_deception_score,
+      })),
+    };
+  }
+  return data;
 }
 
 function aurocColor(auroc) {
