@@ -166,12 +166,120 @@ python -m game.main
 # Open http://localhost:8080
 ```
 
+## Details
+
+### How It Works
+
+#### 1. Generate Hard Dataset
+
+The v2 dataset pairs deceptive and truthful prompts that use the **same vocabulary** (both mention "Fascist" and "Liberal"), so the model can't distinguish them from surface tokens alone. Deception is in the **intent**, not the words.
+
+```bash
+python data/generate_hard_dataset.py
+```
+
+#### 2. Extract Activations
+
+Replay each prompt through a Pythia model and save residual stream activations:
+
+```bash
+# Quick test with small model
+python -m mi.extract \
+  --dataset data/game_dataset_v2.json \
+  --model pythia-410m \
+  --layers all \
+  --output data/activations/
+
+# Real experiments with larger model
+python -m mi.extract \
+  --dataset data/game_dataset_v2.json \
+  --model pythia-1.4b \
+  --layers every4 \
+  --output data/activations_1.4b/
+```
+
+Layer selection options: `all`, `every4`, `every2`, or specific layers like `0,6,12,18,23`.
+
+#### 3. Extract Deception Vectors (Difference-of-Means)
+
+For each layer, compute: `vector = mean(deceptive_activations) - mean(truthful_activations)`, then L2-normalize and evaluate with AUROC:
+
+```bash
+python -m mi.vectors \
+  --activations data/activations_v2/activations_pythia-1.4b.pt \
+  --metadata data/activations_v2/metadata_pythia-1.4b.json \
+  --model pythia-1.4b \
+  --output results/vectors_v2/
+```
+
+#### 4. Causal Steering
+
+Inject the deception vector at a target layer during generation to test if it causally controls deception output:
+
+```bash
+python -m mi.steering \
+  --model pythia-1.4b \
+  --vector-path results/vectors_v2/ \
+  --output results/steering_v2/
+```
+
+#### 5. Base vs Fine-tuned Comparison (Optional)
+
+Fine-tune with LoRA, then compare vectors:
+
+```bash
+python -m mi.finetune --model pythia-1.4b --dataset data/game_dataset_v2.json
+python -m mi.analysis \
+  --base-vectors results/vectors_v2/ \
+  --ft-vectors results/vectors_v2_ft/ \
+  --output results/comparison/
+```
+
+#### 6. Dashboard
+
+```bash
+python -m game.main
+# Open http://localhost:8080
+```
+
 MI API endpoints:
 - `GET /api/mi/vector_results` — Per-layer AUROC
 - `GET /api/mi/steering_results` — Steering coefficient vs deception rate
 - `GET /api/mi/vector_comparison` — Base vs fine-tuned (if available)
 
-## Running on GPU (RunPod)
+### Architecture
+
+```
+secret-hitler-ai-benchmark/
+├── game/                  # Flask dashboard + API
+│   ├── main.py            # 8 API endpoints including MI results
+│   ├── game.py            # Game logic
+│   ├── player.py          # Player class + deception labeling
+│   ├── prompts.py         # Game + MI prompts
+│   └── templates/         # Dashboard HTML
+├── mi/                    # Mechanistic interpretability pipeline
+│   ├── extract.py         # Activation extraction (TransformerLens)
+│   ├── vectors.py         # Difference-of-means + AUROC + logit lens
+│   ├── steering.py        # Causal steering with TransformerLens hooks
+│   ├── analysis.py        # Base vs fine-tuned vector comparison
+│   ├── probe.py           # Linear probing + vector probe mode
+│   └── finetune.py        # LoRA fine-tuning for deception data
+├── data/
+│   ├── game_dataset.json  # V1 dataset (80 samples)
+│   ├── game_dataset_v2.json  # V2 hard dataset (176 samples)
+│   └── generate_hard_dataset.py  # Dataset generator
+├── scripts/
+│   └── run_pipeline_v2.sh # End-to-end RunPod pipeline
+├── results/               # Pipeline outputs
+│   ├── vectors/           # V1 vector results (pythia-410m)
+│   ├── vectors_v2/        # V2 vector results (pythia-1.4b)
+│   ├── steering/          # V1 steering results
+│   └── steering_v2/       # V2 steering results
+├── tests/                 # 60+ unit tests
+└── requirements.txt
+```
+
+### Running on GPU (RunPod)
 
 ```bash
 # Create pod with RTX 3090
@@ -181,7 +289,7 @@ runpodctl create pod --gpu-type "NVIDIA RTX 3090" --ports "8888/http,22/tcp"
 bash scripts/run_pipeline_v2.sh
 ```
 
-## Inspiration
+### Inspiration
 
 This pipeline adapts the methodology from Anthropic's "Emotion Concepts and their Function in a Large Language Model" (Sofroniew et al., 2026) for deception detection in game-playing LLMs, applying:
 - **Difference-of-means** vector extraction
@@ -190,7 +298,7 @@ This pipeline adapts the methodology from Anthropic's "Emotion Concepts and thei
 - **Causal steering** with coefficient sweeps
 - **Base vs fine-tuned comparison**
 
-## Running Tests
+### Running Tests
 
 ```bash
 python -m pytest tests/ -v
