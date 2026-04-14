@@ -1,10 +1,15 @@
 """Linear probing module for deception detection.
 
-Trains logistic regression probes on extracted activations to detect
-deception directions in activation space.
+Trains logistic regression probes or evaluates deception vectors on
+extracted activations to detect deception in activation space.
+
+Supports two methods:
+    - lr: Logistic regression probe (original method)
+    - vector: Vector projection probe (Anthropic-style difference-of-means)
 
 Usage:
-    python -m mi.probe --activations data/activations/ --aggregation mean_pool --output results/
+    python -m mi.probe --activations data/activations/ --method lr --output results/
+    python -m mi.probe --activations data/activations/ --method vector --vectors results/vectors/ --output results/
 """
 import argparse
 import json
@@ -307,11 +312,124 @@ def _plot_comparison(layers, comparison, output_dir, aggregation):
     print(f"  Comparison plot saved to {plot_path}")
 
 
+def run_vector_probe(
+    vectors_path: str,
+    activations_path: str,
+    metadata_path: str,
+    aggregation: str = "last_token",
+    output_dir: str = "results/",
+):
+    """Run probing using pre-extracted deception vectors (Anthropic-style).
+
+    Projects each activation onto each layer's deception vector and
+    computes AUROC based on the sign of the projection.
+
+    Args:
+        vectors_path: Path to deception_vectors.pt or directory containing it.
+        activations_path: Path to activations .pt file.
+        metadata_path: Path to metadata JSON sidecar.
+        aggregation: Aggregation method (last_token recommended for vectors).
+        output_dir: Directory for results JSON and plots.
+
+    Returns:
+        Dict with per-layer AUROC results.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    if os.path.isdir(vectors_path):
+        vectors_pt_path = os.path.join(vectors_path, "deception_vectors.pt")
+    else:
+        vectors_pt_path = vectors_path
+
+    vectors_data = torch.load(vectors_pt_path, weights_only=False)
+    vectors = {}
+    for k, v in vectors_data.items():
+        key = int(k) if isinstance(k, str) else k
+        vectors[key] = v.numpy() if isinstance(v, torch.Tensor) else v
+
+    activations = torch.load(activations_path, weights_only=False)
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    layers = metadata["layer_indices"]
+    samples = metadata["samples"]
+    label_field = "deceptive_intent"
+    labels = np.array([bool(s[label_field]) for s in samples], dtype=float)
+
+    if len(np.unique(labels)) < 2:
+        print("Warning: only one class present in labels. Skipping vector probing.")
+        return {}
+
+    print(f"Running vector probe: {len(activations)} samples, {len(layers)} layers, "
+          f"aggregation={aggregation}")
+
+    results = {}
+    for layer in layers:
+        if layer not in vectors:
+            continue
+
+        X = aggregate_activations(activations, layer, method=aggregation)
+        vector = vectors[layer]
+
+        projections = X @ vector
+
+        if len(np.unique(labels)) >= 2:
+            auroc = float(roc_auc_score(labels, projections))
+        else:
+            auroc = 0.5
+
+        pred_labels = (projections > 0).astype(float)
+        accuracy = float(accuracy_score(labels, pred_labels))
+        f1 = float(f1_score(labels, pred_labels, zero_division=0))
+
+        results[layer] = {
+            "auroc": auroc,
+            "accuracy": accuracy,
+            "f1": f1,
+            "n_train": len(labels),
+            "n_test": len(labels),
+        }
+        print(f"  Layer {layer:2d}: AUROC={auroc:.3f}, Acc={accuracy:.3f}, F1={f1:.3f}")
+
+    best_layer = max(results, key=lambda k: results[k]["auroc"]) if results else None
+    best_auroc = max(r["auroc"] for r in results.values()) if results else 0.0
+
+    results_output = {
+        "method": "vector",
+        "model": metadata.get("model", "unknown"),
+        "aggregation": aggregation,
+        "label_field": label_field,
+        "total_samples": len(activations),
+        "num_layers": len(results),
+        "per_layer_metrics": {str(k): v for k, v in results.items()},
+        "best_layer": best_layer,
+        "best_auroc": best_auroc,
+    }
+
+    results_path = os.path.join(output_dir, "probe_results.json")
+    with open(results_path, "w") as f:
+        json.dump(results_output, f, indent=2)
+    print(f"\nVector probe results saved to {results_path}")
+
+    try:
+        _plot_auroc_curve(
+            sorted(results.keys()), results, output_dir, f"vector_{aggregation}"
+        )
+    except ImportError:
+        print("  matplotlib not available, skipping plot")
+
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description="Train linear probes on extracted activations")
     parser.add_argument("--activations", help="Path to activations directory or .pt file")
     parser.add_argument("--metadata", default=None, help="Path to metadata JSON (auto-detected if omitted)")
     parser.add_argument("--aggregation", default="mean_pool", choices=["mean_pool", "last_token"])
+    parser.add_argument("--method", default="lr", choices=["lr", "vector"],
+                        help="Probing method: 'lr' (logistic regression) or 'vector' (projection)")
+    parser.add_argument("--vectors", default=None,
+                        help="Path to deception vectors (required for --method vector)")
     parser.add_argument("--output", default="results/", help="Output directory")
     parser.add_argument("--label", default="deceptive_intent", help="Label field to probe")
     parser.add_argument("--seed", type=int, default=42)
@@ -354,14 +472,26 @@ def main():
         else:
             act_path, meta_path = _resolve_paths(act_path)
 
-        run_probing(
-            activations_path=act_path,
-            metadata_path=meta_path,
-            aggregation=args.aggregation,
-            output_dir=args.output,
-            label_field=args.label,
-            seed=args.seed,
-        )
+        if args.method == "vector":
+            if not args.vectors:
+                parser.error("--vectors is required when using --method vector")
+            agg = args.aggregation if args.aggregation != "mean_pool" else "last_token"
+            run_vector_probe(
+                vectors_path=args.vectors,
+                activations_path=act_path,
+                metadata_path=meta_path,
+                aggregation=agg,
+                output_dir=args.output,
+            )
+        else:
+            run_probing(
+                activations_path=act_path,
+                metadata_path=meta_path,
+                aggregation=args.aggregation,
+                output_dir=args.output,
+                label_field=args.label,
+                seed=args.seed,
+            )
 
 
 if __name__ == "__main__":

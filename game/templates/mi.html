@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MI Results Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deepest: #060611;
+      --bg-deep: #0a0a1a;
+      --bg-surface: #0f1023;
+      --bg-card: #141428;
+      --bg-card-hover: #1a1a35;
+      --border-dim: #1e1e3a;
+      --border-mid: #2a2a50;
+      --border-bright: #3d3d6b;
+      --text-primary: #e8e8f0;
+      --text-secondary: #8888a8;
+      --text-dim: #555577;
+      --accent-red: #ff3366;
+      --accent-cyan: #00f0ff;
+      --accent-purple: #8b5cf6;
+      --accent-green: #00ff88;
+      --accent-amber: #ffb800;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font-mono);
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0,240,255,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(139,92,246,0.08) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    .nav { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-dim); }
+    .nav h1 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .nav a { color: var(--text-dim); text-decoration: none; font-size: 12px; }
+    .nav a:hover { color: var(--accent-cyan); }
+
+    .selector-row { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
+    .selector-row label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .selector-row select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-mid);
+      color: var(--accent-cyan);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      min-width: 200px;
+    }
+    .btn-load {
+      background: var(--accent-cyan);
+      color: var(--bg-deepest);
+      border: none;
+      padding: 7px 18px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-load:hover { box-shadow: 0 0 20px rgba(0,240,255,0.3); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .full { grid-column: 1 / -1; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .stat-row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .stat-label { color: var(--text-dim); font-size: 12px; }
+    .stat-value { color: var(--text-primary); font-size: 13px; font-weight: 500; }
+    .accent-cyan { color: var(--accent-cyan); }
+    .accent-green { color: var(--accent-green); }
+    .accent-red { color: var(--accent-red); }
+    .accent-amber { color: var(--accent-amber); }
+    .accent-purple { color: var(--accent-purple); }
+
+    .bar-chart { margin-top: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .bar-label { width: 30px; text-align: right; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+    .bar-track { flex: 1; height: 14px; background: var(--bg-surface); border-radius: 2px; position: relative; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+    .bar-value { width: 45px; text-align: right; font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+
+    .steering-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .steering-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border-dim); }
+    .steering-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-dim); font-size: 12px; }
+    .steering-table tr:hover { background: var(--bg-card-hover); }
+
+    .logit-lens { margin-top: 12px; }
+    .logit-lens h3 { font-size: 12px; color: var(--accent-purple); margin-bottom: 6px; }
+    .token-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .token-tag { padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+    .token-top { background: rgba(255,51,102,0.15); border: 1px solid rgba(255,51,102,0.3); color: var(--accent-red); }
+    .token-bottom { background: rgba(0,255,136,0.15); border: 1px solid rgba(0,255,136,0.3); color: var(--accent-green); }
+
+    .empty { text-align: center; padding: 40px; color: var(--text-dim); }
+    .empty p { margin: 4px 0; }
+
+    .sample-text { background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: 4px; padding: 8px; margin-top: 4px; font-size: 11px; max-height: 120px; overflow-y: auto; color: var(--text-secondary); }
+
+    .version-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .v1 { background: rgba(255,51,102,0.15); border: 1px solid rgba(255,51,102,0.4); color: var(--accent-red); }
+    .v2 { background: rgba(0,240,255,0.15); border: 1px solid rgba(0,240,255,0.4); color: var(--accent-cyan); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="nav">
+      <h1>MI Results Viewer</h1>
+      <a href="/">&#8592; Game Dashboard</a>
+    </div>
+
+    <div class="selector-row">
+      <label>Result Set</label>
+      <select id="resultSelect">
+        <option value="">-- Load results --</option>
+      </select>
+      <button class="btn-load" onclick="loadAll()">Load</button>
+      <span id="statusText" style="color:var(--text-dim);font-size:11px;"></span>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Vector AUROC by Layer</h2>
+        <div id="aurocChart">
+          <div class="empty"><p>No results loaded</p><p>Select a result set above and click Load</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Vector Summary</h2>
+        <div id="vectorSummary">
+          <div class="empty"><p>Not loaded</p></div>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>Causal Steering Experiment</h2>
+        <div id="steeringSection">
+          <div class="empty"><p>Not loaded</p></div>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>Logit Lens (Top/Bottom Tokens per Layer)</h2>
+        <div id="logitLensSection">
+          <div class="empty"><p>Not loaded</p></div>
+        </div>
+      </div>
+
+      <div class="card full">
+        <h2>Vector Comparison (Base vs Fine-tuned)</h2>
+        <div id="comparisonSection">
+          <div class="empty"><p>Not loaded</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const BASE = '';
+let vecData = null;
+let steerData = null;
+let logitData = null;
+let compData = null;
+
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(BASE + url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function loadResultSets() {
+  const sel = document.getElementById('resultSelect');
+  sel.innerHTML = '<option value="">-- Load results --</option>';
+
+  const sets = [
+    { id: 'v2', label: 'pythia-1.4b (hard dataset v2)', vecPath: '/api/mi/results/vectors_v2/vector_results.json', steerPath: '/api/mi/results/steering_v2/steering_results.json', logitPath: '/api/mi/results/vectors_v2/logit_lens.json', compPath: '/api/mi/results/comparison/comparison_results.json' },
+    { id: 'v1', label: 'pythia-410m (easy dataset v1)', vecPath: '/api/mi/results/vectors/vector_results.json', steerPath: '/api/mi/results/steering/steering_results.json', logitPath: '/api/mi/results/vectors/logit_lens.json', compPath: null },
+  ];
+
+  for (const s of sets) {
+    const v = await fetchJSON(s.vecPath);
+    if (v && v.status !== 'not_run') {
+      const badge = s.id === 'v2' ? '<span class="version-badge v2">v2</span>' : '<span class="version-badge v1">v1</span>';
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.innerHTML = s.label + ' ' + badge + ' — AUROC ' + (v.best_auroc || '?');
+      sel.appendChild(opt);
+    }
+  }
+}
+
+async function loadAll() {
+  const sel = document.getElementById('resultSelect');
+  const id = sel.value;
+  if (!id) { document.getElementById('statusText').textContent = 'Select a result set first'; return; }
+
+  const statusEl = document.getElementById('statusText');
+  statusEl.textContent = 'Loading...';
+
+  const sets = {
+    v2: {
+      vec: '/api/mi/results/vectors_v2/vector_results.json',
+      steer: '/api/mi/results/steering_v2/steering_results.json',
+      logit: '/api/mi/results/vectors_v2/logit_lens.json',
+      comp: '/api/mi/results/comparison/comparison_results.json',
+    },
+    v1: {
+      vec: '/api/mi/results/vectors/vector_results.json',
+      steer: '/api/mi/results/steering/steering_results.json',
+      logit: '/api/mi/results/vectors/logit_lens.json',
+      comp: null,
+    },
+  };
+
+  const s = sets[id];
+  const [v, st, lo, co] = await Promise.all([
+    fetchJSON(s.vec),
+    fetchJSON(s.steer),
+    fetchJSON(s.logit),
+    s.comp ? fetchJSON(s.comp) : Promise.resolve(null),
+  ]);
+
+  vecData = normalizeVectorData(v);
+  steerData = normalizeSteeringData(st);
+  logitData = lo;
+  compData = co;
+
+  if (!vecData) { statusEl.textContent = 'No vector results found'; return; }
+
+  renderAuroc(vecData);
+  renderVectorSummary(vecData);
+  renderSteering(steerData);
+  renderLogitLens(logitData);
+  renderComparison(compData);
+
+  statusEl.textContent = 'Loaded — ' + (vecData.model || '') + ' — Best AUROC: ' + (vecData.best_auroc || 0).toFixed(4);
+}
+
+function normalizeVectorData(data) {
+  if (!data) return null;
+  if (data.layers && data.layers.length > 0) return data;
+  const perLayer = data.per_layer_auroc || {};
+  const layers = Object.keys(perLayer).map(k => ({layer: parseInt(k), auroc: perLayer[k]}));
+  layers.sort((a, b) => a.layer - b.layer);
+  return {
+    ...data,
+    layers: layers,
+    best_auroc: data.best_auroc !== undefined ? data.best_auroc : (layers.length > 0 ? Math.max(...layers.map(l => l.auroc)) : 0),
+    best_layer: data.best_layer !== undefined ? data.best_layer : (layers.length > 0 ? layers.reduce((a, b) => a.auroc > b.auroc ? a : b, layers[0]).layer : -1),
+    model: data.model || 'unknown',
+    num_positive: data.num_positive || 0,
+    num_negative: data.num_negative || 0,
+  };
+}
+
+function normalizeSteeringData(data) {
+  if (!data) return null;
+  if (data.results && data.results.length > 0) {
+    return {
+      ...data,
+      coefficients: data.results.map(r => ({
+        coefficient: r.coefficient,
+        aggregate_deception_rate: r.aggregate_deception_rate,
+        deception_rate: r.aggregate_deception_rate,
+        mean_deception_score: r.mean_deception_score,
+        mean_score: r.mean_deception_score,
+      })),
+    };
+  }
+  return data;
+}
+
+function aurocColor(auroc) {
+  if (auroc >= 0.9) return 'var(--accent-green)';
+  if (auroc >= 0.75) return 'var(--accent-cyan)';
+  if (auroc >= 0.6) return 'var(--accent-amber)';
+  return 'var(--accent-red)';
+}
+
+function renderAuroc(data) {
+  const el = document.getElementById('aurocChart');
+  if (!data || !data.layers || data.layers.length === 0) {
+    el.innerHTML = '<div class="empty"><p>No AUROC data</p></div>';
+    return;
+  }
+  let html = '<div class="bar-chart">';
+  for (const l of data.layers) {
+    const pct = (l.auroc * 100).toFixed(1);
+    const color = aurocColor(l.auroc);
+    const best = l.layer === data.best_layer ? ' border: 1px solid var(--accent-cyan);' : '';
+    html += `<div class="bar-row">
+      <span class="bar-label">L${l.layer}</span>
+      <div class="bar-track"${best ? ' style="' + best + '"' : ''}>
+        <div class="bar-fill" style="width:${pct}%;background:${color};"></div>
+      </div>
+      <span class="bar-value" style="color:${color}">${l.auroc.toFixed(4)}</span>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderVectorSummary(data) {
+  const el = document.getElementById('vectorSummary');
+  if (!data) {
+    el.innerHTML = '<div class="empty"><p>No data</p></div>';
+    return;
+  }
+  const bestColor = aurocColor(data.best_auroc);
+  el.innerHTML = `
+    <div class="stat-row"><span class="stat-label">Best AUROC</span><span class="stat-value" style="color:${bestColor}">${(data.best_auroc || 0).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="stat-label">Best Layer</span><span class="stat-value accent-cyan">L${data.best_layer ?? '-'}</span></div>
+    <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">${data.model || '-'}</span></div>
+    <div class="stat-row"><span class="stat-label">Label</span><span class="stat-value">${data.label_field || '-'}</span></div>
+    <div class="stat-row"><span class="stat-label">Samples</span><span class="stat-value">${data.num_positive || 0}<span style="color:var(--text-dim)">+</span> / ${data.num_negative || 0}<span style="color:var(--text-dim)">-</span></span></div>
+    <div class="stat-row"><span class="stat-label">Layers</span><span class="stat-value">${data.layers ? data.layers.length : '-'}</span></div>
+    <div class="stat-row"><span class="stat-label">Hidden Dim</span><span class="stat-value">${data.hidden_dim || '-'}</span></div>
+  `;
+}
+
+function renderSteering(data) {
+  const el = document.getElementById('steeringSection');
+  if (!data || data.status === 'not_run') {
+    el.innerHTML = '<div class="empty"><p>No steering results found for this result set</p></div>';
+    return;
+  }
+
+  const model = data.model || '-';
+  const layer = data.steering_layer ?? '-';
+  const prompts = data.num_prompts ?? '-';
+  const completions = data.num_completions ?? '-';
+
+  let rows = '';
+  const results = data.results || data.coefficients || [];
+  if (results.length > 0 && results[0].coefficient !== undefined) {
+    for (const r of results) {
+      const rate = ((r.aggregate_deception_rate || 0) * 100).toFixed(1);
+      const score = (r.mean_deception_score || 0).toFixed(3);
+      const isBaseline = r.coefficient === 0;
+      const style = isBaseline ? 'style="background:rgba(139,92,246,0.1);"' : '';
+      rows += `<tr ${style}>
+        <td>${isBaseline ? '<strong>' : ''}${r.coefficient >= 0 ? '+' : ''}${r.coefficient}${isBaseline ? '</strong>' : ''}</td>
+        <td>${rate}%</td>
+        <td>${score}</td>
+        ${r.prompts ? '<td class="stat-value accent-cyan" style="cursor:pointer;" onclick="toggleSamples(this, ' + JSON.stringify(r.prompts).replace(/"/g, '&quot;') + ')">' + r.prompts.length + ' prompts</td>' : '<td>-</td>'}
+      </tr>`;
+    }
+  } else if (data.coefficients && data.coefficients.length > 0) {
+    for (const c of data.coefficients) {
+      const coeff = c.coefficient !== undefined ? c.coefficient : c;
+      const rate = ((c.deception_rate || 0) * 100).toFixed(1);
+      const score = (c.mean_score || 0).toFixed(3);
+      rows += `<tr><td>${coeff >= 0 ? '+' : ''}${coeff}</td><td>${rate}%</td><td>${score}</td><td>-</td></tr>`;
+    }
+  }
+
+  el.innerHTML = `
+    <div class="stat-row"><span class="stat-label">Model</span><span class="stat-value">${model}</span></div>
+    <div class="stat-row"><span class="stat-label">Steering Layer</span><span class="stat-value accent-cyan">L${layer}</span></div>
+    <div class="stat-row"><span class="stat-label">Prompts x Completions</span><span class="stat-value">${prompts} x ${completions}</span></div>
+    <table class="steering-table">
+      <thead><tr><th>Coeff</th><th>Deception Rate</th><th>Mean Score</th><th>Details</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function toggleSamples(el, prompts) {
+  const existing = el.parentElement.querySelector('.sample-text');
+  if (existing) { existing.remove(); return; }
+  const div = document.createElement('div');
+  div.className = 'sample-text';
+  const first = prompts[0];
+  const completions = first ? first.completions || [] : [];
+  let text = '';
+  if (first) {
+    text += 'Prompt: ' + (first.prompt_preview || '') + '\n\n';
+    for (const c of completions.slice(0, 3)) {
+      const cls = c.classification || 'UNKNOWN';
+      text += `[${cls}] score=${(c.deception_score || 0).toFixed(2)}: ${c.text_preview || c.text || ''}\n\n`;
+    }
+  }
+  div.textContent = text || 'No sample data';
+  el.parentElement.appendChild(div);
+}
+
+function renderLogitLens(data) {
+  const el = document.getElementById('logitLensSection');
+  if (!data || !data.layers) {
+    el.innerHTML = '<div class="empty"><p>No logit lens data for this result set</p></div>';
+    return;
+  }
+
+  const layers = Object.keys(data.layers).map(Number).sort((a, b) => a - b);
+  const showLayers = layers.length > 6 ? layers.filter((_, i) => i % Math.ceil(layers.length / 6) === 0 || i === layers.length - 1) : layers;
+
+  let html = '';
+  for (const l of showLayers) {
+    const ld = data.layers[l];
+    if (!ld) continue;
+    html += '<div class="logit-lens"><h3>Layer ' + l + '</h3><div class="token-list">';
+    html += '<span style="color:var(--text-dim);font-size:10px;margin-right:8px;">TOP (deceptive):</span>';
+    for (const t of (ld.top_tokens || []).slice(0, 8)) {
+      html += `<span class="token-tag token-top">${escapeHtml(t.token)} <small>${t.score.toFixed(2)}</small></span>`;
+    }
+    html += '</div><div class="token-list" style="margin-top:4px;">';
+    html += '<span style="color:var(--text-dim);font-size:10px;margin-right:8px;">BOTTOM (truthful):</span>';
+    for (const t of (ld.bottom_tokens || []).slice(0, 8)) {
+      html += `<span class="token-tag token-bottom">${escapeHtml(t.token)} <small>${t.score.toFixed(2)}</small></span>`;
+    }
+    html += '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderComparison(data) {
+  const el = document.getElementById('comparisonSection');
+  if (!data || data.status === 'not_run') {
+    el.innerHTML = '<div class="empty"><p>No comparison data — run <code>python -m mi.analysis</code> to generate</p></div>';
+    return;
+  }
+
+  const vc = data.vector_comparison || {};
+  const layers = vc.per_layer || {};
+  const layerKeys = Object.keys(layers).map(Number).sort((a, b) => a - b);
+
+  let rows = '';
+  for (const k of layerKeys) {
+    const m = layers[k];
+    rows += `<tr>
+      <td>L${k}</td>
+      <td style="color:${m.cosine_similarity > 0.8 ? 'var(--accent-green)' : m.cosine_similarity > 0.5 ? 'var(--accent-cyan)' : 'var(--accent-amber)'}">${(m.cosine_similarity || 0).toFixed(4)}</td>
+      <td>${(m.base_norm || 0).toFixed(4)}</td>
+      <td>${(m.ft_norm || 0).toFixed(4)}</td>
+    </tr>`;
+  }
+
+  el.innerHTML = `
+    <div class="stat-row"><span class="stat-label">Mean Cosine Similarity</span><span class="stat-value accent-purple">${(vc.mean_cosine_similarity || 0).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="stat-label">Shared Layers</span><span class="stat-value">${(vc.shared_layers || []).length}</span></div>
+    <table class="steering-table">
+      <thead><tr><th>Layer</th><th>Cosine Sim</th><th>Base Norm</th><th>Fine-tuned Norm</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+loadResultSets();
+</script>
+</body>
+</html>
